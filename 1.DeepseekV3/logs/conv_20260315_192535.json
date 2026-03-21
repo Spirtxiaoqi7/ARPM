@@ -1,0 +1,25 @@
+{
+  "id": "20260315_192535",
+  "timestamp": "2026-03-15T19:25:37.483436",
+  "messages": [
+    {
+      "role": "user",
+      "content": "你是谁"
+    },
+    {
+      "role": "assistant",
+      "content": "我是你的AI助手，随时为你提供帮助和解答问题。有什么需要我做的吗？"
+    }
+  ],
+  "rag_context": "",
+  "usage": {
+    "prompt_tokens": 48,
+    "completion_tokens": 19,
+    "total_tokens": 67,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 48
+  }
+}

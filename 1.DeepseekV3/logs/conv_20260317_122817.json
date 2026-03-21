@@ -1,0 +1,33 @@
+{
+  "id": "20260317_122817",
+  "timestamp": "2026-03-17T12:28:29.513155",
+  "messages": [
+    {
+      "role": "user",
+      "content": "1"
+    },
+    {
+      "role": "assistant",
+      "content": "<response>嗯？你发了个“1”是什么意思呀？我没太看懂呢。"
+    },
+    {
+      "role": "user",
+      "content": ""
+    },
+    {
+      "role": "assistant",
+      "content": "<response>呃……你是在测试我能不能看到消息，还是想说什么别的呀？直接发个数字，我有点懵。"
+    }
+  ],
+  "rag_context": "这是一个测试块\n这是一个测试块",
+  "usage": {
+    "prompt_tokens": 385,
+    "completion_tokens": 72,
+    "total_tokens": 457,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 385
+  }
+}

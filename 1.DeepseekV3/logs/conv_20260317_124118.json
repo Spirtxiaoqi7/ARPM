@@ -1,0 +1,25 @@
+{
+  "id": "20260317_124118",
+  "timestamp": "2026-03-17T12:41:20.977400",
+  "messages": [
+    {
+      "role": "user",
+      "content": "你好"
+    },
+    {
+      "role": "assistant",
+      "content": "<response>你好呀！今天过得怎么样？"
+    }
+  ],
+  "rag_context": "这是一个测试块\n这是一个测试块\n这是一个测试块",
+  "usage": {
+    "prompt_tokens": 367,
+    "completion_tokens": 34,
+    "total_tokens": 401,
+    "prompt_tokens_details": {
+      "cached_tokens": 64
+    },
+    "prompt_cache_hit_tokens": 64,
+    "prompt_cache_miss_tokens": 303
+  }
+}
