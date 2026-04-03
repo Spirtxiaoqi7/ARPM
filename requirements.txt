@@ -1,0 +1,16 @@
+flask[async]
+python-dotenv==1.0.0
+openai>=1.28.0
+httpx>=0.27.0
+jieba==0.42.1
+rank-bm25==0.2.2
+faiss-cpu==1.7.4
+sentence-transformers>=2.3.0
+huggingface-hub<0.26.0
+transformers
+torch
+numpy==1.26.2
+pydantic==2.5.2
+requests==2.31.0
+aiohttp==3.9.1
+asgiref
