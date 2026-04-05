@@ -203,6 +203,7 @@ RRF_K=60.0
 
 **Q: 模型加载失败**
 ```bash
+模型网盘（国内）：https://pan.quark.cn/s/899cdf543685
 # 手动下载模型
 pip install modelscope
 python -c "from modelscope import snapshot_download; snapshot_download('shibing624/text2vec-base-chinese', cache_dir='models')"
