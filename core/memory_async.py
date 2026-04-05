@@ -26,7 +26,7 @@ class MemoryAsyncManager:
         memory_entry = {
             "round": round_num,
             "content": content,
-            "timestamp": time.time(),
+            "timestamp": round_num,  # ARPM 使用对话轮次作为时间戳
             "datetime": datetime.now().isoformat(),
             "metadata": metadata or {}
         }

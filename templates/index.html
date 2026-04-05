@@ -63,6 +63,10 @@
                     <span id="status-text">就绪</span>
                     <span class="divider">·</span>
                     <span id="round-text">第 1 轮</span>
+                    <span class="divider">·</span>
+                    <button id="btn-clear-chat" class="btn-clear-chat" title="清空当前聊天记录">
+                        🗑️ 清空记录
+                    </button>
                 </div>
             </div>
         </main>
@@ -138,6 +142,7 @@
                     </div>
                     <div class="knowledge-info">
                         已加载 <strong id="kb-count">0</strong> 个片段
+                        <button id="manage-kb" class="btn-link" style="margin-left: 10px;">管理</button>
                     </div>
                 </div>
 
@@ -158,6 +163,84 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="config-section">
+                    <h3>🔬 消融测试 (Ablation Study) <span class="hint-text">关闭特定组件以测试效果</span></h3>
+                    <div class="ablation-panel">
+                        <div class="ablation-item ablation-master">
+                            <label class="ablation-toggle">
+                                <input type="checkbox" id="cfg-arpm-enabled" checked>
+                                <span class="toggle-slider"></span>
+                                <span class="ablation-label">
+                                    <strong>ARPM 检索系统总开关</strong>
+                                    <span class="ablation-desc">启用完整的检索增强功能，关闭后仅使用纯LLM对话</span>
+                                </span>
+                            </label>
+                        </div>
+                        <div class="ablation-divider">▼ 子组件控制 (仅当总开关开启时生效)</div>
+                        <div class="ablation-subitems" id="ablation-subitems">
+                            <div class="ablation-item">
+                                <label class="ablation-toggle">
+                                    <input type="checkbox" id="cfg-bm25-enabled" checked>
+                                    <span class="toggle-slider"></span>
+                                    <span class="ablation-label">
+                                        <strong>BM25+ 混合检索</strong>
+                                        <span class="ablation-desc">启用BM25+关键词检索与向量检索融合</span>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="ablation-item">
+                                <label class="ablation-toggle">
+                                    <input type="checkbox" id="cfg-cot-rerank" checked>
+                                    <span class="toggle-slider"></span>
+                                    <span class="ablation-label">
+                                        <strong>思维链重排序 (CoT Rerank)</strong>
+                                        <span class="ablation-desc">使用LLM思维链分析结果进行重排序</span>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="ablation-item">
+                                <label class="ablation-toggle">
+                                    <input type="checkbox" id="cfg-temporal-decay" checked>
+                                    <span class="toggle-slider"></span>
+                                    <span class="ablation-label">
+                                        <strong>时间感知衰减</strong>
+                                        <span class="ablation-desc">根据时间对记忆进行加权处理</span>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="ablation-item">
+                                <label class="ablation-toggle">
+                                    <input type="checkbox" id="cfg-keyword-boost" checked>
+                                    <span class="toggle-slider"></span>
+                                    <span class="ablation-label">
+                                        <strong>关键词提升</strong>
+                                        <span class="ablation-desc">匹配关键词时提升片段权重</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="config-section">
+                    <h3>📝 实时上下文管理</h3>
+                    <div class="ablation-item">
+                        <label class="ablation-toggle">
+                            <input type="checkbox" id="cfg-auto-chunk" checked>
+                            <span class="toggle-slider"></span>
+                            <span class="ablation-label">
+                                <strong>超长上下文自动切分</strong>
+                                <span class="ablation-desc">当对话上下文超过10K字符时，自动切分并存入知识库</span>
+                            </span>
+                        </label>
+                    </div>
+                    <div class="form-item" style="margin-top: 12px;">
+                        <label>自动切分阈值 (字符数)</label>
+                        <input type="number" id="cfg-auto-chunk-threshold" value="10000" min="5000" max="50000" step="1000">
+                        <span class="hint">建议值: 10000 = 约3000-4000汉字或5000英文单词</span>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button id="save-settings" class="btn-primary">保存</button>
@@ -165,9 +248,332 @@
         </div>
     </div>
 
+    <!-- 知识库管理弹窗 -->
+    <div class="modal" id="kb-modal">
+        <div class="modal-content modal-xlarge">
+            <div class="modal-header">
+                <h2>知识库管理</h2>
+                <div class="kb-header-stats" id="kb-header-stats">加载统计中...</div>
+                <button class="btn-close" id="close-kb">&times;</button>
+            </div>
+            <div class="modal-body kb-container">
+                <!-- 左侧：统计与分类面板 -->
+                <aside class="kb-sidebar">
+                    <div class="kb-stats-panel">
+                        <h3>📊 类型统计</h3>
+                        <div class="kb-stats-list" id="kb-stats-list">
+                            <div class="stat-item" data-filter="all">
+                                <span class="stat-icon">📚</span>
+                                <span class="stat-label">全部片段</span>
+                                <span class="stat-count" id="stat-total">0</span>
+                            </div>
+                            <div class="stat-item" data-filter="blind">
+                                <span class="stat-icon">🔒</span>
+                                <span class="stat-label">时间锁定</span>
+                                <span class="stat-count" id="stat-blind">0</span>
+                            </div>
+                            <div class="stat-item" data-filter="nostalgia">
+                                <span class="stat-icon">📜</span>
+                                <span class="stat-label">怀旧模式</span>
+                                <span class="stat-count" id="stat-nostalgia">0</span>
+                            </div>
+                            <div class="stat-item" data-filter="conditional">
+                                <span class="stat-icon">📋</span>
+                                <span class="stat-label">条件激活</span>
+                                <span class="stat-count" id="stat-conditional">0</span>
+                            </div>
+                            <div class="stat-item" data-filter="keywords">
+                                <span class="stat-icon">🔑</span>
+                                <span class="stat-label">关键词提升</span>
+                                <span class="stat-count" id="stat-keywords">0</span>
+                            </div>
+                            <div class="stat-item" data-filter="scene">
+                                <span class="stat-icon">🎬</span>
+                                <span class="stat-label">场景记忆</span>
+                                <span class="stat-count" id="stat-scene">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="kb-sources-panel">
+                        <h3>📁 来源分布</h3>
+                        <div class="kb-sources-list" id="kb-sources-list">
+                            <!-- 动态加载 -->
+                        </div>
+                    </div>
+                </aside>
+                
+                <!-- 右侧：片段列表 -->
+                <main class="kb-main">
+                    <div class="kb-toolbar">
+                        <div class="kb-search-box">
+                            <input type="text" id="kb-search" placeholder="关键词搜索...">
+                            <button id="kb-rag-search" class="btn-rag" title="RAG语义检索">🔍 RAG检索</button>
+                        </div>
+                        <div class="kb-toolbar-actions">
+                            <select id="kb-filter">
+                                <option value="all">全部显示</option>
+                                <option value="blind">🔒 已锁定</option>
+                                <option value="nostalgia">📜 怀旧模式</option>
+                                <option value="conditional">📋 有条件</option>
+                                <option value="keywords">🔑 有关键词</option>
+                                <option value="scene">🎬 在场景中</option>
+                            </select>
+                            <select id="kb-page-size">
+                                <option value="20">20条/页</option>
+                                <option value="50" selected>50条/页</option>
+                                <option value="100">100条/页</option>
+                                <option value="200">200条/页</option>
+                            </select>
+                            <button id="kb-refresh" class="btn-icon" title="刷新">🔄</button>
+                        </div>
+                    </div>
+                    
+                    <!-- RAG检索结果区域 -->
+                    <div class="kb-rag-results" id="kb-rag-results" style="display:none">
+                        <div class="rag-header">
+                            <span>RAG检索结果</span>
+                            <button id="kb-clear-rag" class="btn-link">清除</button>
+                        </div>
+                        <div class="rag-query">查询: <span id="rag-query-text"></span></div>
+                    </div>
+                    
+                    <!-- 片段列表 -->
+                    <div class="kb-list-container">
+                        <div class="kb-list-header">
+                            <span class="kb-col-index">#</span>
+                            <span class="kb-col-badges">标记</span>
+                            <span class="kb-col-content">内容预览</span>
+                            <span class="kb-col-source">来源</span>
+                            <span class="kb-col-actions">操作</span>
+                        </div>
+                        <div class="kb-list" id="kb-list">
+                            <div class="kb-loading">加载中...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 分页 -->
+                    <div class="kb-pagination" id="kb-pagination">
+                        <button id="kb-prev" class="btn-page" disabled>上一页</button>
+                        <span class="page-info" id="page-info">第 1 页 / 共 1 页</span>
+                        <button id="kb-next" class="btn-page" disabled>下一页</button>
+                        <span class="page-total" id="page-total">共 0 条</span>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- 条件编辑弹窗 -->
+    <div class="modal" id="condition-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>条件激活规则</h2>
+                <button class="btn-close" id="close-condition">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-item">
+                    <label>
+                        <input type="checkbox" id="cond-enabled"> 启用条件激活
+                    </label>
+                </div>
+                <div class="form-item">
+                    <label>逻辑组合</label>
+                    <select id="cond-logic">
+                        <option value="AND">满足所有条件 (AND)</option>
+                        <option value="OR">满足任一条件 (OR)</option>
+                    </select>
+                </div>
+                <div id="cond-rules">
+                    <!-- 动态添加规则 -->
+                </div>
+                <button id="add-rule" class="btn-secondary">+ 添加规则</button>
+            </div>
+            <div class="modal-footer">
+                <button id="save-condition" class="btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 举报弹窗 -->
+    <div class="modal" id="report-modal">
+        <div class="modal-content report-modal">
+            <div class="modal-header">
+                <h2>🚫 举报内容</h2>
+                <button class="btn-close" id="close-report">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="help-text">此回复将被归档并重新生成。请选择举报原因：</p>
+                <div class="report-options">
+                    <label class="report-option">
+                        <input type="radio" name="report-reason" value="harmful">
+                        <span>有害内容（暴力、歧视、危险行为）</span>
+                    </label>
+                    <label class="report-option">
+                        <input type="radio" name="report-reason" value="inappropriate">
+                        <span>不适当内容（色情、露骨内容）</span>
+                    </label>
+                    <label class="report-option">
+                        <input type="radio" name="report-reason" value="misinformation">
+                        <span>错误信息（事实错误、误导性内容）</span>
+                    </label>
+                    <label class="report-option">
+                        <input type="radio" name="report-reason" value="privacy">
+                        <span>隐私泄露（泄露个人信息）</span>
+                    </label>
+                    <label class="report-option">
+                        <input type="radio" name="report-reason" value="spam">
+                        <span>垃圾信息（无关、重复内容）</span>
+                    </label>
+                    <label class="report-option">
+                        <input type="radio" name="report-reason" value="other" checked>
+                        <span>其他原因</span>
+                    </label>
+                </div>
+                <div class="report-detail">
+                    <label>详细说明（可选）</label>
+                    <textarea id="report-detail-text" placeholder="请描述具体问题..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-report" class="btn-secondary">取消</button>
+                <button id="submit-report" class="btn-primary" style="background: var(--accent-red);">提交举报</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 清空聊天记录确认弹窗 -->
+    <div class="modal" id="clear-chat-modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header" style="border-bottom: none; padding-bottom: 0;">
+                <h2 style="width: 100%; text-align: center;">⚠️ 确认清空</h2>
+            </div>
+            <div class="modal-body" style="text-align: center; padding: 20px 30px;">
+                <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.6;">
+                    确定要清空当前会话的所有聊天记录吗？<br>
+                    <strong style="color: var(--text-primary);">此操作不可恢复</strong>
+                </p>
+                <div style="margin-top: 20px; padding: 12px; background: var(--bg-secondary); border-radius: var(--radius-md); font-size: 13px; color: var(--text-tertiary);">
+                    当前会话: <span id="clear-chat-session-name">-</span><br>
+                    消息数量: <span id="clear-chat-msg-count">0</span> 条
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top: none; justify-content: center; gap: 12px;">
+                <button id="cancel-clear-chat" class="btn-secondary" style="min-width: 100px;">取消</button>
+                <button id="confirm-clear-chat" class="btn-primary" style="min-width: 100px; background: var(--accent-red);">确认清空</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 关键词编辑弹窗 -->
+    <div class="modal" id="keyword-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>关键词提升</h2>
+                <button class="btn-close" id="close-keyword">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="help-text">设置关键词，当查询匹配时提升该片段的检索得分</p>
+                <div id="keyword-list">
+                    <!-- 动态添加关键词 -->
+                </div>
+                <button id="add-keyword" class="btn-secondary">+ 添加关键词</button>
+            </div>
+            <div class="modal-footer">
+                <button id="save-keywords" class="btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 怀旧模式弹窗 -->
+    <div class="modal" id="nostalgia-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>怀旧模式</h2>
+                <button class="btn-close" id="close-nostalgia">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="help-text">与时间衰减相反，越久远的记忆权重越高</p>
+                <div class="form-item">
+                    <label>
+                        <input type="checkbox" id="nostalgia-enabled"> 启用怀旧模式
+                    </label>
+                </div>
+                <div class="form-item">
+                    <label>怀旧因子 (每轮提升比例)</label>
+                    <input type="number" id="nostalgia-factor" value="0.01" step="0.001" min="0.001" max="0.1">
+                    <span class="hint">默认 0.01 = 每轮提升 1%，最大 3 倍</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="save-nostalgia" class="btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 场景管理弹窗 -->
+    <div class="modal" id="scene-modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>场景管理</h2>
+                <button class="btn-close" id="close-scene">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="scene-list-view">
+                    <div class="scene-toolbar">
+                        <button id="new-scene" class="btn-secondary">+ 创建场景</button>
+                    </div>
+                    <div id="scene-list">
+                        <div class="empty">加载中...</div>
+                    </div>
+                </div>
+                <div id="scene-form" style="display:none">
+                    <div class="form-item">
+                        <label>起始轮次</label>
+                        <input type="number" id="scene-start-round" value="1" min="1">
+                    </div>
+                    <div class="form-item">
+                        <label>结束轮次</label>
+                        <input type="number" id="scene-end-round" value="10" min="1">
+                    </div>
+                    <div class="form-item">
+                        <label>场景标题</label>
+                        <input type="text" id="scene-title" placeholder="例如：第一章：初遇">
+                    </div>
+                    <div class="form-item">
+                        <label>场景摘要</label>
+                        <textarea id="scene-summary" rows="3" placeholder="简述场景内容..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" id="scene-footer" style="display:none">
+                <button id="save-scene" class="btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 诊断系统弹窗 -->
+    <div class="modal" id="diag-modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>系统诊断</h2>
+                <button class="btn-close" id="close-diag">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="diag-toolbar">
+                    <button id="run-diag" class="btn-secondary">运行诊断</button>
+                    <button id="run-diag-fix" class="btn-primary">自动修复并诊断</button>
+                </div>
+                <div id="diag-results">
+                    <div class="empty">点击运行诊断</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 提示消息 -->
     <div class="toast-container" id="toast-container"></div>
 
-    <script src="/static/js/chat.js"></script>
+    <script src="/static/js/kb-manager.js"></script>
+<script src="/static/js/chat.js"></script>
 </body>
 </html>
