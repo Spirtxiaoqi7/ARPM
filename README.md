@@ -1,5 +1,6 @@
 # ARPM v3.0 - Analysis-Based Role-Playing with Memory
-
+> Status: ARPM V3 is an early public prototype.  
+> Newer versions focus on External Fluid Memory, cross-model continuity, time-aware retrieval, and memory governance.
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-3.0-green.svg)](https://github.com/yourusername/ARPM)
