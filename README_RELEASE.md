@@ -7,6 +7,23 @@ and Docker files.
 It intentionally does not include virtual environments, runtime databases,
 logs, uploaded files, experiment outputs, or model weights.
 
+ARPM v4.0 is intended for both academic research and free dialogue use. For
+research, it supports memory-augmented role-playing experiments, retrieval
+ablation, temporal weighting analysis, prompt-injection inspection, and
+figure/log reproduction. For daily use, it supports configurable AI personas,
+knowledge-base assisted conversation, and an immersive chat interface.
+
+Main implementation languages and technologies:
+
+- Python and Flask for the backend
+- HTML, CSS, and vanilla JavaScript for the frontend
+- FAISS for vector indexing
+- `shibing624/text2vec-base-chinese` for sentence embeddings
+- BM25+ and `jieba` for keyword retrieval
+- Docker Compose for containerized deployment
+
+arXiv: coming soon. The preprint link can be added to `README.md` after release.
+
 ## Local Run
 
 ```bash

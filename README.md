@@ -1,10 +1,60 @@
 # ARPM v4.0
 
-ARPM v4.0 是一个基于 Flask 后端和静态前端的角色扮演记忆系统，支持知识库召回、对话历史召回、双时间权重、角色感知查询增强，以及按时间顺序注入 prompt 的召回内容。
+ARPM v4.0, short for **Analysis-Based Role-Playing with Memory**, is an open-source role-playing dialogue system with long-term memory, hybrid retrieval, temporal weighting, and a lightweight web interface.
 
-本发布包用于 GitHub 开源发布，不包含虚拟环境、运行数据库、日志、上传文件、实验输出和模型权重。
+本项目面向两类场景：一类是可复现实验和学术研究，另一类是自由对话、角色扮演和个人知识库交互。系统默认提供前后端一体化运行方式，也支持 Docker 部署，便于在本地实验、课程项目、论文复现和开源社区协作中使用。
 
-## 快速启动
+> arXiv: coming soon. 论文地址会在预印本发布后补充到这里。
+
+## Highlights
+
+- **Hybrid memory retrieval**: knowledge-base retrieval and dialogue-history retrieval are stored and retrieved separately.
+- **Vector + BM25+ fusion**: knowledge retrieval combines semantic vector search with BM25+ keyword ranking through RRF.
+- **Dual temporal weighting**: both dialogue round order and physical time are retained for memory scoring and prompt injection.
+- **Chronological prompt injection**: recalled blocks are injected from earlier turns to later turns, so the latest recalled content appears closest to the final instruction.
+- **Role-aware retrieval**: user name, AI name, and source-role cues can be used to enhance retrieval queries.
+- **Research-friendly logging**: recall logs, dialogue logs, and chain-of-thought-related diagnostic logs are separated under the admin logging structure.
+- **Free dialogue support**: the frontend supports immersive chat and clean research display modes, with Chinese/English interface switching.
+
+## Technology Stack
+
+- **Backend**: Python, Flask
+- **Frontend**: HTML, CSS, vanilla JavaScript
+- **Vector index**: FAISS
+- **Embedding model**: `shibing624/text2vec-base-chinese`
+- **Keyword retrieval**: BM25+ with `jieba` Chinese tokenization
+- **LLM API**: OpenAI-compatible chat completion API, including DeepSeek/OpenAI-style endpoints
+- **Deployment**: local Python virtual environment or Docker Compose
+
+## Academic Use
+
+ARPM v4.0 is designed to support controlled experiments around memory-augmented dialogue systems. It can be used to study:
+
+- role consistency in long multi-turn dialogue;
+- retrieval-augmented generation for character simulation;
+- temporal decay in dialogue memory;
+- vector retrieval versus BM25+ keyword retrieval;
+- prompt construction under chronological memory injection;
+- ablation studies for retrieval, temporal weighting, BM25+, and role-aware query enhancement.
+
+The project includes research notes and formula descriptions under `docs/`. Runtime logs can be used for experimental inspection, error analysis, and figure reproduction.
+
+## Free Dialogue Use
+
+Besides research use, ARPM v4.0 can also be used as a local role-playing chat system. You can configure:
+
+- user name and user persona;
+- AI name and system prompt;
+- API key, base URL, and model name;
+- retrieval parameters and ablation switches;
+- knowledge-base files for character background, world settings, or personal notes.
+
+The frontend provides two visual styles:
+
+- immersive chat mode for daily conversation and role-playing;
+- clean research mode for observation, debugging, and experiment demonstration.
+
+## Quick Start
 
 Windows:
 
@@ -23,40 +73,40 @@ pip install -r requirements.txt
 sh start.sh
 ```
 
-访问：
+Open the web interface:
 
 ```text
 http://127.0.0.1:5000
 ```
 
-## Docker 启动
+## Docker
 
 ```bash
 docker compose up --build
 ```
 
-`docker-compose.yml` 会映射：
+The compose file maps:
 
 ```text
-./runtime       -> /app/runtime
-./assets/models -> /app/assets/models
+./runtime        -> /app/runtime
+./assets/models  -> /app/assets/models
 ```
 
-## 向量模型下载
+## Model Download
 
-向量检索使用句向量模型：
+Vector retrieval uses the sentence embedding model:
 
 ```text
 shibing624/text2vec-base-chinese
 ```
 
-默认本地路径为：
+Model weights are not included in this repository. The expected local path is:
 
 ```text
 assets/models/shibing624/text2vec-base-chinese
 ```
 
-方式一：使用 Git LFS 下载：
+Download with Git LFS:
 
 ```bash
 git lfs install
@@ -64,14 +114,14 @@ mkdir -p assets/models/shibing624
 git clone https://huggingface.co/shibing624/text2vec-base-chinese assets/models/shibing624/text2vec-base-chinese
 ```
 
-方式二：使用 Hugging Face CLI 下载：
+Download with Hugging Face CLI:
 
 ```bash
 pip install -U huggingface_hub
 huggingface-cli download shibing624/text2vec-base-chinese --local-dir assets/models/shibing624/text2vec-base-chinese
 ```
 
-如果 Hugging Face 访问较慢，可以先设置镜像端点：
+If Hugging Face is slow in your network, set a mirror endpoint before download:
 
 ```bash
 export HF_ENDPOINT=https://hf-mirror.com
@@ -83,7 +133,7 @@ Windows PowerShell:
 $env:HF_ENDPOINT = "https://hf-mirror.com"
 ```
 
-也可以把模型放在仓库外部，然后通过环境变量指定模型根目录：
+You can also keep the model outside the repository and point the app to it:
 
 ```bash
 export ARPM_MODEL_ROOT=/path/to/models
@@ -97,31 +147,35 @@ $env:ARPM_MODEL_ROOT = "D:\models"
 
 ## BM25+
 
-BM25+ 不是需要下载的模型权重，而是关键词排序算法。本项目中的实现位置是：
+BM25+ is not a downloadable model. It is a keyword-ranking algorithm implemented in:
 
 ```text
 backend/utils/bm25_plus.py
 ```
 
-该实现使用 `jieba` 做中文分词，在导入知识库后基于父块内容运行时构建 BM25+ 索引。知识库检索时，系统会将向量检索结果和 BM25+ 关键词排序结果通过 RRF 融合。
+The implementation uses `jieba` for Chinese tokenization and builds the BM25+ index from imported knowledge-base parent chunks at runtime. In the knowledge retrieval path, vector search and BM25+ keyword ranking are fused through RRF.
 
-相关依赖已写入 `requirements.txt`：
+Related dependencies are pinned in `requirements.txt`:
 
 ```text
 jieba==0.42.1
 rank-bm25==0.2.2
 ```
 
-说明：当前核心 BM25+ 逻辑使用 `backend/utils/bm25_plus.py` 中的 `BM25PlusScorer` 自研实现，`rank-bm25` 作为环境依赖保留，便于复现实验或后续替换。
+The current retrieval path uses the in-project `BM25PlusScorer`; `rank-bm25` is retained as an environment dependency for reproducibility and future replacement experiments.
 
-## 项目结构
+## Project Layout
 
 ```text
 backend/app.py                       Flask entry
 backend/config.py                    Path and runtime configuration
-backend/core/retriever.py            Vector, BM25+, RRF retrieval flow
+backend/api                          HTTP API endpoints
+backend/core/retriever.py            Vector, BM25+, and RRF retrieval flow
+backend/core/generator.py            Prompt construction and response generation
 backend/storage/vector_store.py      FAISS vector storage
+backend/storage/memory_store.py      Dialogue memory storage
 backend/utils/bm25_plus.py           BM25+ scorer
+backend/utils/admin_logger.py        Research and diagnostic logs
 backend/web/templates/index.html     Frontend template
 backend/web/static                   Frontend CSS and JavaScript
 config                               Character and system configuration
@@ -130,23 +184,64 @@ scripts                              Utility scripts
 tests                                Test files
 ```
 
-## 运行路径
+## Runtime Paths
 
-默认运行数据目录：
+Default runtime data directory:
 
 ```text
 runtime/arpm-app
 ```
 
-默认模型根目录：
+Default model root:
 
 ```text
 assets/models
 ```
 
-二者都可以通过环境变量修改：
+Both paths can be changed with environment variables:
 
 ```text
 ARPM_RUNTIME_DIR
 ARPM_MODEL_ROOT
+```
+
+## API Configuration
+
+The frontend settings panel supports OpenAI-compatible API configuration:
+
+```text
+API key
+Base URL
+Model name
+Temperature
+Max tokens
+```
+
+The default configuration is compatible with DeepSeek-style endpoints, and can be changed from the web interface.
+
+## Research Notes
+
+For formula descriptions, parameter values, temporal decay settings, and experiment-facing explanations, see:
+
+```text
+docs/
+```
+
+The project keeps runtime data out of the release package. When publishing or sharing experimental results, keep raw logs, figures, and private datasets separate from the source repository unless they are explicitly intended for release.
+
+## License
+
+This project is released under the license included in `LICENSE`.
+
+## Citation
+
+The paper citation will be added after the arXiv preprint is available.
+
+```bibtex
+@misc{arpm-v4,
+  title  = {ARPM v4.0: Analysis-Based Role-Playing with Memory},
+  author = {To be updated},
+  year   = {2026},
+  note   = {arXiv coming soon}
+}
 ```
