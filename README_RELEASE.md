@@ -1,5 +1,18 @@
 # ARPM-v4 Release Package
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/Flask-000000?style=flat&logo=flask&logoColor=white" />
+  <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=flat&logo=javascript&logoColor=black" />
+  <img src="https://img.shields.io/badge/FAISS-Vector_Search-4B8BBE?style=flat" />
+  <img src="https://img.shields.io/badge/BM25%2B-Hybrid_Retrieval-5A5A5A?style=flat" />
+  <img src="https://img.shields.io/badge/HuggingFace-Models-FFD21E?style=flat&logo=huggingface&logoColor=black" />
+  <img src="https://img.shields.io/badge/OpenAI-Compatible_API-412991?style=flat&logo=openai&logoColor=white" />
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white" />
+  <img src="https://img.shields.io/badge/arXiv-coming_soon-B31B1B?style=flat&logo=arxiv&logoColor=white" />
+  <img src="https://img.shields.io/badge/License-MIT-green?style=flat" />
+</p>
+
 This package is arranged for a GitHub-style release. It contains source code,
 configuration, tests, documentation, frontend static assets, dependency pins,
 and Docker files.

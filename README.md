@@ -1,5 +1,20 @@
 # ARPM v4.0
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/Flask-000000?style=flat&logo=flask&logoColor=white" />
+  <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=flat&logo=javascript&logoColor=black" />
+  <img src="https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white" />
+  <img src="https://img.shields.io/badge/CSS3-1572B6?style=flat&logo=css3&logoColor=white" />
+  <img src="https://img.shields.io/badge/FAISS-Vector_Search-4B8BBE?style=flat" />
+  <img src="https://img.shields.io/badge/BM25%2B-Hybrid_Retrieval-5A5A5A?style=flat" />
+  <img src="https://img.shields.io/badge/HuggingFace-Models-FFD21E?style=flat&logo=huggingface&logoColor=black" />
+  <img src="https://img.shields.io/badge/OpenAI-Compatible_API-412991?style=flat&logo=openai&logoColor=white" />
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white" />
+  <img src="https://img.shields.io/badge/arXiv-coming_soon-B31B1B?style=flat&logo=arxiv&logoColor=white" />
+  <img src="https://img.shields.io/badge/License-MIT-green?style=flat" />
+</p>
+
 ARPM v4.0, short for **Analysis-Based Role-Playing with Memory**, is an open-source role-playing dialogue system with long-term memory, hybrid retrieval, temporal weighting, and a lightweight web interface.
 
 本项目面向两类场景：一类是可复现实验和学术研究，另一类是自由对话、角色扮演和个人知识库交互。系统默认提供前后端一体化运行方式，也支持 Docker 部署，便于在本地实验、课程项目、论文复现和开源社区协作中使用。
