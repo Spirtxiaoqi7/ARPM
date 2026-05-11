@@ -1,139 +1,152 @@
-# ARPM v3.0 — Analysis-Based Role-Playing with Memory
+# ARPM v4.0
 
-> **Status: Early Public Prototype**
->
-> ARPM V3 is an early public prototype of the ARPM project.  
-> It explores analysis-based generation, retrieval-augmented dialogue memory, and long-term persona consistency.
->
-> Newer internal versions have moved toward **External Fluid Memory (EFM)**, focusing on cross-model continuity, time-aware retrieval, memory governance, promotion, rollback, and auditable long-term dialogue state.
->
-> This repository remains public as an early implementation reference.
+ARPM v4.0 是一个基于 Flask 后端和静态前端的角色扮演记忆系统，支持知识库召回、对话历史召回、双时间权重、角色感知查询增强，以及按时间顺序注入 prompt 的召回内容。
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-3.0-green.svg)](https://github.com/Spirtxiaoqi7/ARPM)
+本发布包用于 GitHub 开源发布，不包含虚拟环境、运行数据库、日志、上传文件、实验输出和模型权重。
 
----
+## 快速启动
 
-## What is ARPM?
+Windows:
 
-**ARPM** is an experimental memory architecture for long-term AI dialogue.
+```bash
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
+start.bat
+```
 
-Version 3.0 focuses on combining **analysis-based generation** with **retrieval-augmented memory**, so that an AI character or dialogue agent can maintain better consistency across long conversations.
+Linux or macOS:
 
-It is not only a prompt template, and it is not only a normal RAG chatbot.  
-ARPM V3 attempts to give the model structured external evidence before generation, including dialogue history, knowledge fragments, time-aware memory weights, and retrieval signals.
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+sh start.sh
+```
 
-The core idea is simple:
+访问：
 
-> A model can be replaced.  
-> A broken memory chain cannot.
+```text
+http://127.0.0.1:5000
+```
 
----
+## Docker 启动
 
-## Current Research Direction
+```bash
+docker compose up --build
+```
 
-ARPM V3 is the public early-stage version.
+`docker-compose.yml` 会映射：
 
-The current research direction has evolved into ARPM V4/V5, with a stronger focus on:
+```text
+./runtime       -> /app/runtime
+./assets/models -> /app/assets/models
+```
 
-- External Fluid Memory
-- Cross-model persona continuity
-- Time-aware dialogue evidence
-- Dual-source retrieval
-- Dual-timescale memory modeling
-- Memory promotion and rollback
-- Auditable long-term dialogue logs
-- Analysis-style generation instead of pure roleplay prompting
+## 向量模型下载
 
-In later versions, memory is treated as a governable object that can be recalled, promoted, merged, rolled back, and audited, rather than as static text simply injected into the prompt.
+向量检索使用句向量模型：
 
----
+```text
+shibing624/text2vec-base-chinese
+```
 
-## Core Features
+默认本地路径为：
 
-### Analysis-Based Dialogue Protocol
+```text
+assets/models/shibing624/text2vec-base-chinese
+```
 
-ARPM V3 uses an analysis-first dialogue protocol.
+方式一：使用 Git LFS 下载：
 
-- First-turn silent analysis
-- Full response generation after memory initialization
-- Retrieval-enhanced dialogue state
-- Persona consistency through external memory evidence
-- Reduced dependence on pure prompt-based roleplay
+```bash
+git lfs install
+mkdir -p assets/models/shibing624
+git clone https://huggingface.co/shibing624/text2vec-base-chinese assets/models/shibing624/text2vec-base-chinese
+```
 
-The goal is to make the model respond based on retrieved context and structured memory, rather than relying only on the current context window.
+方式二：使用 Hugging Face CLI 下载：
 
----
+```bash
+pip install -U huggingface_hub
+huggingface-cli download shibing624/text2vec-base-chinese --local-dir assets/models/shibing624/text2vec-base-chinese
+```
 
-### Cognitive Memory Architecture
+如果 Hugging Face 访问较慢，可以先设置镜像端点：
 
-ARPM V3 includes an early cognitive memory design for long-form AI interaction.
+```bash
+export HF_ENDPOINT=https://hf-mirror.com
+```
 
-- **ARPM Turn Protocol**: first-round analysis and later full-response generation
-- **Time-aware Memory**: memory decay and nostalgia-style enhancement
-- **Scene-aware Memory**: grouped management of plot or conversation segments
-- **Real-time Archiving**: long context is automatically split and archived
-- **Session Isolation**: multiple sessions are kept separate to reduce memory confusion
+Windows PowerShell:
 
-This version is an early attempt at making long conversations more stable and inspectable.
+```powershell
+$env:HF_ENDPOINT = "https://hf-mirror.com"
+```
 
----
+也可以把模型放在仓库外部，然后通过环境变量指定模型根目录：
 
-### Retrieval-Augmented Generation
+```bash
+export ARPM_MODEL_ROOT=/path/to/models
+```
 
-ARPM V3 uses hybrid retrieval to provide external evidence for generation.
+Windows PowerShell:
 
-- **BM25+ Retrieval**: keyword matching with field weighting and coverage reward
-- **Vector Search**: Chinese semantic retrieval based on `text2vec`
-- **RRF Fusion**: combines keyword and vector retrieval results
-- **Keyword Boosting**: dynamic weighting with anti-abuse constraints
-- **Knowledge Base Support**: uploaded documents can be chunked and searched
+```powershell
+$env:ARPM_MODEL_ROOT = "D:\models"
+```
 
-The retrieval layer is designed to support both factual knowledge and dialogue memory.
+## BM25+
 
----
+BM25+ 不是需要下载的模型权重，而是关键词排序算法。本项目中的实现位置是：
 
-### Ablation and Experiment Support
+```text
+backend/utils/bm25_plus.py
+```
 
-ARPM V3 includes component-level switches for experimental comparison.
+该实现使用 `jieba` 做中文分词，在导入知识库后基于父块内容运行时构建 BM25+ 索引。知识库检索时，系统会将向量检索结果和 BM25+ 关键词排序结果通过 RRF 融合。
 
-- **ARPM Global Switch**: compare pure LLM dialogue with enhanced dialogue
-- **BM25+ Switch**: test keyword retrieval contribution
-- **CoT Reranking Switch**: test reasoning-assisted reranking
-- **Time Decay Switch**: test temporal memory weighting
-- **Keyword Boost Switch**: test explicit keyword intervention
-- **Feedback Collection**: collect likes, dislikes, and regenerated responses
+相关依赖已写入 `requirements.txt`：
 
-These features were designed to observe how each component affects long-term dialogue consistency.
+```text
+jieba==0.42.1
+rank-bm25==0.2.2
+```
 
----
+说明：当前核心 BM25+ 逻辑使用 `backend/utils/bm25_plus.py` 中的 `BM25PlusScorer` 自研实现，`rank-bm25` 作为环境依赖保留，便于复现实验或后续替换。
 
-### Practical System Functions
+## 项目结构
 
-ARPM V3 also includes several practical tools for local experimentation.
+```text
+backend/app.py                       Flask entry
+backend/config.py                    Path and runtime configuration
+backend/core/retriever.py            Vector, BM25+, RRF retrieval flow
+backend/storage/vector_store.py      FAISS vector storage
+backend/utils/bm25_plus.py           BM25+ scorer
+backend/web/templates/index.html     Frontend template
+backend/web/static                   Frontend CSS and JavaScript
+config                               Character and system configuration
+docs                                 Research and implementation notes
+scripts                              Utility scripts
+tests                                Test files
+```
 
-- **System Diagnostics**: health checks and basic auto-repair
-- **Knowledge Base Management**: upload, chunk, search, and manage fragments
-- **Chat History Management**: delete single messages or clear sessions
-- **Content Archive**: store regenerated or reported content for inspection
-- **Local Deployment**: runs on CPU without requiring a GPU
+## 运行路径
 
-This makes V3 suitable as a local prototype for testing memory-augmented AI dialogue.
+默认运行数据目录：
 
----
+```text
+runtime/arpm-app
+```
 
-## What ARPM V3 Is Not
+默认模型根目录：
 
-ARPM V3 is an early prototype and should not be confused with the latest ARPM architecture.
+```text
+assets/models
+```
 
-It is not:
+二者都可以通过环境变量修改：
 
-- A finished product
-- A complete external memory governance system
-- A full implementation of ARPM V4/V5
-- A general-purpose enterprise RAG platform
-- A replacement for later External Fluid Memory designs
-
-It is best understood as an early public implementation that explores the first stage of ARPM:  
-**retrieval-enhanced, analysis-based long-term dialogue memory.**
+```text
+ARPM_RUNTIME_DIR
+ARPM_MODEL_ROOT
+```

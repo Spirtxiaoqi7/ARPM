@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARPM v4 对话系统</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app">
+        <aside class="sidebar">
+            <div class="brand-panel">
+                <div class="brand-logo">ARPM-v4</div>
+            </div>
+
+            <div class="sidebar-tools">
+                <button type="button" id="btn-global-search" class="tool-row" title="全局知识库检索与管理">
+                    <span class="tool-icon">⌕</span>
+                    <span class="tool-copy"><strong>知识库</strong><small>全局检索与块管理</small></span>
+                </button>
+                <button type="button" id="btn-session-search" class="tool-row" title="当前会话历史检索与管理">
+                    <span class="tool-icon">↳</span>
+                    <span class="tool-copy"><strong>会话记忆</strong><small>当前历史块管理</small></span>
+                </button>
+                <button type="button" id="btn-collapse-sidebar" class="tool-row" title="收起侧边栏">
+                    <span class="tool-icon">≡</span>
+                    <span class="tool-copy"><strong>收起侧栏</strong><small>保留主工作区</small></span>
+                </button>
+            </div>
+
+            <div class="session-area">
+                <button id="new-chat" class="btn-new-chat">
+                    <span>+</span> 新对话
+                </button>
+                <div class="session-list" id="session-list"></div>
+            </div>
+
+            <div class="sidebar-footer">
+                <button id="open-diagnose" class="btn-settings" style="margin-bottom:8px;">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                    <span><strong>常规设置</strong><small>身份、角色、API、检测</small></span>
+                </button>
+                <button id="open-settings" class="btn-settings">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.5.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.63c-.04.34-.07.67-.07 1 0 .33.03.66.07.97l-2.11 1.63c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.63Z"/></svg>
+                    <span><strong>参数设置</strong><small>检索、知识库、实验参数</small></span>
+                </button>
+            </div>
+        </aside>
+
+        <main class="main">
+            <header class="header">
+                <div class="session-meta">
+                    <span id="label-session-id">当前会话编号：</span>
+                    <strong id="session-meta-id">未创建</strong>
+                    <span id="label-session-date">日期：</span>
+                    <strong id="session-meta-date">--</strong>
+                </div>
+                <div class="status-strip">
+                    <span id="ui-port-text">端口 5000</span>
+                    <span id="label-api-status">API状态</span>
+                    <strong id="api-status-text">未连接</strong>
+                    <span id="label-llm">LLM：</span>
+                    <strong id="model-display">deepseek-chat</strong>
+                    <span id="label-arpm-status">ARPM系统状态：</span>
+                    <strong id="arpm-status-text">正常</strong>
+                </div>
+                <div class="top-actions">
+                    <div class="theme-switch" aria-label="风格切换">
+                        <button type="button" id="btn-theme-chat" class="active">聊天风格</button>
+                        <button type="button" id="btn-theme-research">研究风格</button>
+                    </div>
+                    <div class="language-switch" aria-label="语言切换">
+                        <button type="button" id="btn-lang-zh" class="active">中文模式</button>
+                        <button type="button" id="btn-lang-en">English</button>
+                    </div>
+                    <button type="button" id="btn-export-current" class="btn-export-current">导出当前会话</button>
+                </div>
+            </header>
+
+            <div class="chat-container" id="chat-container">
+                <div class="welcome" id="welcome">
+                    <h1>ARPM v4</h1>
+                    <p>召回内容与 prompt 写入会在右侧同步显示</p>
+                    <div class="welcome-actions">
+                        <button type="button" id="welcome-open-settings" class="btn-secondary">配置 API 与角色</button>
+                        <button type="button" id="welcome-open-params" class="btn-secondary">查看检索参数</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <textarea id="user-input" placeholder="此空白为用户输入" rows="1"></textarea>
+                    <div class="input-actions">
+                        <button id="btn-input-settings" class="btn-ghost" title="常规设置" type="button">⚙</button>
+                        <button id="btn-send" class="btn-send" disabled>
+                            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M2 12a10 10 0 1 1 20 0 10 10 0 0 1-20 0Zm18 0a8 8 0 1 0-16 0 8 8 0 0 0 16 0Zm-4.7-2.3a1 1 0 0 1 0 1.4l-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 0 1 1.4-1.4L11 12.58l3.3-3.3a1 1 0 0 1 1.4 0Z"/></svg>
+                        </button>
+                        <button id="btn-stop" class="btn-stop" style="display:none">
+                            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm4 11H8v-2h8Z"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="input-footer">
+                    <span id="status-text">就绪</span>
+                    <span class="divider">·</span>
+                    <span id="round-text">第 1 轮</span>
+                    <span class="divider">·</span>
+                    <span id="ui-stats-text">知识块 0 · 会话 0</span>
+                    <span class="divider">·</span>
+                    <button id="btn-clear-chat" class="btn-clear-chat">清空上下文</button>
+                    <button id="btn-clear-chat-index" class="btn-clear-chat" style="background: #dc2626;">清空上下文和索引</button>
+                </div>
+            </div>
+        </main>
+
+        <aside class="info-panel" id="info-panel">
+            <div class="panel-section panel-retrieval">
+                <div class="panel-header">
+                    <span id="label-rag-panel">召回内容与 prompt 实际写入</span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="rag-count" class="count">0</span>
+                        <button id="rag-help-btn" class="help-btn" title="查看检索逻辑说明">?</button>
+                    </div>
+                </div>
+                <div class="panel-content" id="rag-content">
+                    <div class="empty">等待检索...</div>
+                </div>
+            </div>
+            <div class="panel-section panel-cot">
+                <div class="panel-header">
+                    <span id="label-cot-panel">思维链 / 协议诊断</span>
+                </div>
+                <div class="panel-content" id="cot-content">
+                    <div class="empty">等待分析...</div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- 常规设置弹窗 -->
+    <div class="modal" id="settings-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="title-settings">常规设置</h2>
+                <button class="btn-close" id="close-settings">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="config-section">
+                    <h3 id="section-api-title">API 配置</h3>
+                    <div class="form-item">
+                        <label id="label-api-key">API 密钥</label>
+                        <input type="password" id="cfg-api-key" placeholder="sk-...">
+                    </div>
+                    <div class="form-item">
+                        <label id="label-base-url">接口地址</label>
+                        <input type="text" id="cfg-base-url" placeholder="https://api.deepseek.com">
+                    </div>
+                    <div class="form-item">
+                        <label id="label-model-name">模型名称</label>
+                        <input type="text" id="cfg-model" placeholder="deepseek-chat">
+                    </div>
+                    <button id="test-api" class="btn-secondary">测试连接</button>
+                    <span id="test-result"></span>
+                </div>
+
+                <div class="config-section">
+                    <h3 id="section-user-title">用户设定</h3>
+                    <div class="form-item">
+                        <label id="label-user-name">你的名字</label>
+                        <input type="text" id="cfg-user-name" placeholder="如：小明、旅行者、指挥官..." value="用户">
+                    </div>
+                    <div class="form-item">
+                        <label id="label-user-persona">你的人物设定（可选）</label>
+                        <textarea id="cfg-user-persona" rows="2" placeholder="描述你自己在这个对话中的身份、背景等，帮助AI更好地理解你。例如：我是一名高中生，性格内向，喜欢科幻小说..."></textarea>
+                    </div>
+                </div>
+
+                <div class="config-section">
+                    <h3 id="section-ai-title">AI角色设定</h3>
+                    <div class="form-item">
+                        <label id="label-character-name">角色名称</label>
+                        <input type="text" id="cfg-character-name" placeholder="如：温柔教师、冷酷杀手、知心朋友..." value="AI助手">
+                    </div>
+                    <div class="form-item">
+                        <label id="label-system-prompt">角色设定</label>
+                        <textarea id="cfg-system-prompt" rows="4" placeholder="详细描述AI角色的性格、背景、说话风格、行为习惯等。例如：你是一位温柔耐心的语文教师，说话文雅，喜欢用古诗词表达情感..."></textarea>
+                    </div>
+                </div>
+
+                <div class="config-section">
+                    <h3 id="section-basic-title">基础检测</h3>
+                    <div class="diagnose-toolbar compact">
+                        <button type="button" id="open-diagnose-basic" class="btn-secondary">打开系统自检</button>
+                        <button type="button" id="btn-common-check-api" class="btn-secondary">测试 API 连接</button>
+                        <button type="button" id="btn-common-system-diag" class="btn-secondary">系统健康检查</button>
+                        <span id="common-diagnose-status"></span>
+                    </div>
+                    <p id="basic-desc" class="chunk-guide" style="margin-top:8px;">这里只放开源展示时最常用的连接与健康检测；检索、知识库和实验参数放在参数设置中。</p>
+                </div>
+
+                <div class="config-section param-section">
+                    <h3 id="section-protocol-title">分析式生成协议</h3>
+                    <div class="tuning-grid">
+                        <div class="form-item">
+                            <label id="label-protocol-mode">协议模式</label>
+                            <select id="cfg-protocol-mode">
+                                <option value="auto">自动</option>
+                                <option value="strict_tags">严格标签协议</option>
+                            </select>
+                        </div>
+                        <div class="form-item">
+                            <label id="label-reasoning-mode">模型思考链路</label>
+                            <select id="cfg-reasoning-model-mode">
+                                <option value="auto">自动识别</option>
+                                <option value="force_standard">按标准模型处理</option>
+                                <option value="force_reasoning">按思考型模型处理</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="ablation-subitems">
+                        <div class="ablation-item">
+                            <label class="ablation-toggle">
+                                <input type="checkbox" id="cfg-auto-repair-response" checked>
+                                <span class="toggle-slider"></span>
+                                <span class="ablation-label">
+                                    <strong>自动修复协议输出</strong>
+                                    <span class="ablation-desc">模型只思考不回答、缺少 response 标签时，自动做一次协议修复</span>
+                                </span>
+                            </label>
+                        </div>
+                        <div class="ablation-item">
+                            <label class="ablation-toggle">
+                                <input type="checkbox" id="cfg-protocol-diagnostic" checked>
+                                <span class="toggle-slider"></span>
+                                <span class="ablation-label">
+                                    <strong>记录协议诊断</strong>
+                                    <span class="ablation-desc">在诊断面板显示 analysis/response 是否完整，以及是否触发过修复</span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="config-section param-section">
+                    <h3 id="section-kb-title">知识库</h3>
+                    <div class="file-upload">
+                        <input type="file" id="file-upload" accept=".txt,.md,.json" style="display:none">
+                        <button id="upload-file" class="btn-secondary">选择文件</button>
+                        <span id="file-name"></span>
+                    </div>
+                    <div class="tuning-grid" style="margin-top:12px;">
+                        <div class="form-item">
+                            <label id="label-child-size">子块长度</label>
+                            <input type="number" id="cfg-chunk-child-size" min="50" max="1000" step="10" value="200">
+                        </div>
+                        <div class="form-item">
+                            <label id="label-parent-size">父块长度</label>
+                            <input type="number" id="cfg-chunk-parent-size" min="100" max="3000" step="50" value="600">
+                        </div>
+                        <div class="form-item">
+                            <label id="label-overlap">重叠句数</label>
+                            <input type="number" id="cfg-chunk-overlap" min="0" max="10" step="1" value="1">
+                        </div>
+                    </div>
+                    <p class="chunk-guide" style="margin-top:8px;">
+                        短设定卡可减小子块和父块；长叙事文档可适当增大。该参数在知识库上传时生效，不影响已入库数据。
+                    </p>
+                    <!-- 上传进度条 -->
+                    <div id="upload-progress-container" style="display: none; margin-top: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span id="upload-progress-text" style="font-size: 13px; color: var(--text-secondary);">准备上传...</span>
+                            <span id="upload-progress-percent" style="font-size: 13px; color: var(--primary);">0%</span>
+                        </div>
+                        <div class="progress-bar-bg" style="width: 100%; height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden;">
+                            <div id="upload-progress-bar" class="progress-bar-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--primary-light)); border-radius: 4px; transition: width 0.3s ease;"></div>
+                        </div>
+                    </div>
+                    <div class="knowledge-info" style="margin-top: 12px;">
+                        已加载 <strong id="kb-count">0</strong> 个片段
+                        <button id="manage-kb" class="btn-link" style="margin-left: 10px;">管理</button>
+                    </div>
+                </div>
+
+                <div class="config-section param-section">
+                    <h3 id="section-ablation-title">消融实验开关</h3>
+                    <div class="ablation-panel">
+                        <!-- Level 1: RAG总开关 -->
+                        <div class="ablation-item ablation-master">
+                            <label class="ablation-toggle">
+                                <input type="checkbox" id="cfg-rag-enabled" checked>
+                                <span class="toggle-slider"></span>
+                                <span class="ablation-label">
+                                    <strong>RAG 检索总开关</strong>
+                                    <span class="ablation-desc">关闭后使用纯LLM对话，不检索任何上下文</span>
+                                </span>
+                            </label>
+                        </div>
+                        
+                        <div class="ablation-divider">双源召回控制（仅在RAG开启时生效）</div>
+                        
+                        <!-- Level 2: 双源召回独立开关 -->
+                        <div class="ablation-subitems" id="rag-subitems">
+                            <div class="ablation-item">
+                                <label class="ablation-toggle">
+                                    <input type="checkbox" id="cfg-kb-enabled" checked>
+                                    <span class="toggle-slider"></span>
+                                    <span class="ablation-label">
+                                        <strong>知识库召回</strong>
+                                        <span class="ablation-desc">从上传的文档中检索相关知识（Top-5）</span>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="ablation-item">
+                                <label class="ablation-toggle">
+                                    <input type="checkbox" id="cfg-chat-enabled" checked>
+                                    <span class="toggle-slider"></span>
+                                    <span class="ablation-label">
+                                        <strong>对话历史召回</strong>
+                                        <span class="ablation-desc">从历史对话中检索相关内容（Top-10）</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="ablation-divider">检索算法控制</div>
+                        
+                        <!-- Level 3: 算法开关 -->
+                        <div class="ablation-subitems">
+                            <div class="ablation-item">
+                                <label class="ablation-toggle">
+                                    <input type="checkbox" id="cfg-temporal-enabled" checked>
+                                    <span class="toggle-slider"></span>
+                                    <span class="ablation-label">
+                                        <strong>双时态权重</strong>
+                                        <span class="ablation-desc">关闭后禁用时间衰减，RAG不带时间遗忘逻辑</span>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="ablation-item">
+                                <label class="ablation-toggle">
+                                    <input type="checkbox" id="cfg-bm25-enabled" checked>
+                                    <span class="toggle-slider"></span>
+                                    <span class="ablation-label">
+                                        <strong>BM25+ 混合检索</strong>
+                                        <span class="ablation-desc">知识库检索时融合BM25关键词得分</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="ablation-divider">相似度阈值控制</div>
+                        
+                        <!-- 相似度阈值滑块 -->
+                        <div class="ablation-subitems">
+                            <div class="form-item" style="padding: 12px; background: var(--bg-secondary); border-radius: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <label style="margin: 0; font-weight: 500;">召回相似度阈值</label>
+                                    <span id="similarity-threshold-value" style="font-size: 14px; color: var(--primary); font-weight: 600;">0.50</span>
+                                </div>
+                                <input type="range" id="cfg-similarity-threshold" min="0" max="100" value="50" style="width: 100%; height: 6px; border-radius: 3px; background: var(--bg-tertiary); -webkit-appearance: none; cursor: pointer;">
+                                <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--text-secondary);">
+                                    <span>0 (不过滤)</span>
+                                    <span>0.5 (默认)</span>
+                                    <span>1.0 (严格)</span>
+                                </div>
+                                <p style="margin: 8px 0 0 0; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+                                    低于此相似度的召回结果会被过滤。调高可减少无关内容，调低可增加召回量。
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="ablation-divider">重生成控制</div>
+                        
+                        <!-- Level 4: 重生成开关 -->
+                        <div class="ablation-subitems">
+                            <div class="ablation-item">
+                                <label class="ablation-toggle">
+                                    <input type="checkbox" id="cfg-regen-enabled" checked>
+                                    <span class="toggle-slider"></span>
+                                    <span class="ablation-label">
+                                        <strong>启用自动重生成</strong>
+                                        <span class="ablation-desc">验证失败时自动触发重生成</span>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="form-item" style="margin-left: 56px;">
+                                <label>最大重试次数</label>
+                                <input type="number" id="cfg-regen-max" value="1" min="0" max="3" step="1">
+                            </div>
+                            <div class="ablation-item">
+                                <label class="ablation-toggle">
+                                    <input type="checkbox" id="cfg-regen-regex" checked>
+                                    <span class="toggle-slider"></span>
+                                    <span class="ablation-label">
+                                        <strong>正则规则验证</strong>
+                                        <span class="ablation-desc">快速硬规则检查（推荐开启）</span>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="ablation-item">
+                                <label class="ablation-toggle">
+                                    <input type="checkbox" id="cfg-regen-semantic">
+                                    <span class="toggle-slider"></span>
+                                    <span class="ablation-label">
+                                        <strong>LLM语义验证</strong>
+                                        <span class="ablation-desc">深度语义分析（实验性功能，需要额外LLM调用）</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                    </div>
+                </div>
+
+                <div class="config-section param-section">
+                    <h3 id="section-tuning-title">参数调优</h3>
+                    <div class="tuning-panel">
+                        <div class="tuning-row">
+                            <label id="label-presets">预设</label>
+                            <div class="preset-buttons">
+                                <button type="button" class="btn-secondary tuning-preset" data-preset="balanced">通用角色</button>
+                                <button type="button" class="btn-secondary tuning-preset" data-preset="strict">强一致性</button>
+                                <button type="button" class="btn-secondary tuning-preset" data-preset="companion">长期陪伴</button>
+                            </div>
+                        </div>
+
+                        <div class="tuning-grid">
+                            <div class="form-item">
+                                <label>知识库召回数 Top-K</label>
+                                <input type="number" id="cfg-knowledge-k" min="1" max="20" step="1" value="5">
+                            </div>
+                            <div class="form-item">
+                                <label>对话历史召回数 Top-K</label>
+                                <input type="number" id="cfg-chat-history-k" min="1" max="30" step="1" value="10">
+                            </div>
+                            <div class="form-item">
+                                <label>轮次衰减系数</label>
+                                <input type="number" id="cfg-decay-round" min="1" max="500" step="1" value="20">
+                            </div>
+                            <div class="form-item">
+                                <label>物理时间衰减小时数</label>
+                                <input type="number" id="cfg-decay-hours" min="1" max="8760" step="1" value="168">
+                            </div>
+                            <div class="form-item">
+                                <label>RRF 融合系数</label>
+                                <input type="number" id="cfg-rrf-k" min="1" max="200" step="1" value="60">
+                            </div>
+                            <div class="form-item">
+                                <label>生成温度 temperature</label>
+                                <input type="number" id="cfg-temperature" min="0" max="2" step="0.05" value="0.7">
+                            </div>
+                            <div class="form-item">
+                                <label>最大输出 tokens</label>
+                                <input type="number" id="cfg-max-tokens" min="64" max="8192" step="64" value="2000">
+                            </div>
+                        </div>
+
+                        <div class="ablation-divider">角色感知检索增强</div>
+
+                        <div class="ablation-item">
+                            <label class="ablation-toggle">
+                                <input type="checkbox" id="cfg-role-query-prefix" checked>
+                                <span class="toggle-slider"></span>
+                                <span class="ablation-label">
+                                    <strong>打包角色名与用户名到查询</strong>
+                                    <span class="ablation-desc">用于冷启动定位和角色历史快速对齐</span>
+                                </span>
+                            </label>
+                        </div>
+
+                        <div class="tuning-grid">
+                            <div class="form-item">
+                                <label>知识库 用户名加权</label>
+                                <input type="number" id="cfg-kb-user-boost" min="0" max="1" step="0.01" value="0.08">
+                            </div>
+                            <div class="form-item">
+                                <label>知识库 角色名加权</label>
+                                <input type="number" id="cfg-kb-character-boost" min="0" max="1" step="0.01" value="0.08">
+                            </div>
+                            <div class="form-item">
+                                <label>知识库 来源名加权</label>
+                                <input type="number" id="cfg-kb-source-boost" min="0" max="1" step="0.01" value="0.05">
+                            </div>
+                            <div class="form-item">
+                                <label>对话 同会话加权</label>
+                                <input type="number" id="cfg-chat-session-boost" min="0" max="1" step="0.01" value="0.15">
+                            </div>
+                            <div class="form-item">
+                                <label>对话 精确名称加权</label>
+                                <input type="number" id="cfg-chat-exact-boost" min="0" max="1" step="0.01" value="0.10">
+                            </div>
+                            <div class="form-item">
+                                <label>对话 文本含名加权</label>
+                                <input type="number" id="cfg-chat-text-boost" min="0" max="1" step="0.01" value="0.04">
+                            </div>
+                        </div>
+
+                        <div class="tuning-guide">
+                            <strong>调优指南</strong>
+                            <p>先调召回，再调时间衰减，最后调生成温度。角色不稳时先降低 temperature 或提高同会话/名称加权；记忆太散时提高阈值或降低 Top-K；记忆太死时降低阈值或放宽时间衰减。</p>
+                            <p>后续方向：做分场景参数模板、按会话自动推荐参数、把 scene 和 disambiguation 做成真正可启用的闭环能力。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="config-section param-section">
+                    <h3 id="section-danger-title">🗑️ 数据管理（危险操作）</h3>
+                    <div class="danger-zone" style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px;">
+                        <p style="color: #991b1b; font-size: 13px; margin-bottom: 12px;">
+                            ⚠️ 以下操作将永久删除数据，不可恢复！
+                        </p>
+                        
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button id="clear-kb" class="btn-danger" style="background: #dc2626; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                                清空知识库
+                            </button>
+                            <button id="clear-chat-history" class="btn-danger" style="background: #ea580c; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                                清空对话历史
+                            </button>
+                            <button id="clear-all-data" class="btn-danger" style="background: #7f1d1d; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;">
+                                清空所有数据
+                            </button>
+                        </div>
+                        
+                        <div id="clear-data-result" style="margin-top: 12px; font-size: 13px; color: #166534; display: none;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="save-settings" class="btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 参数设置弹窗 -->
+    <div class="modal" id="params-modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="title-params">参数设置</h2>
+                <button class="btn-close" id="close-params">&times;</button>
+            </div>
+            <div class="modal-body" id="params-modal-body"></div>
+            <div class="modal-footer">
+                <button id="save-params" class="btn-primary">保存参数</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 知识库管理弹窗 -->
+    <div class="modal" id="kb-modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>知识库管理</h2>
+                <button class="btn-close" id="close-kb">&times;</button>
+            </div>
+            <div class="modal-body kb-container">
+                <div class="kb-toolbar">
+                    <input type="text" id="kb-search" placeholder="搜索知识库...">
+                    <button id="kb-refresh" class="btn-icon">刷新</button>
+                </div>
+                <div class="kb-list" id="kb-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自检模块弹窗 -->
+    <div class="modal" id="diagnose-modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>系统自检</h2>
+                <button class="btn-close" id="close-diagnose">&times;</button>
+            </div>
+            <div class="modal-body diagnose-container">
+                <!-- 自检操作区 -->
+                <div class="diagnose-toolbar">
+                    <button id="btn-check-api" class="btn-secondary">测试API连接</button>
+                    <button id="btn-arpm-report" class="btn-secondary">ARPM组件报告</button>
+                    <button id="btn-system-diag" class="btn-secondary">系统健康检查</button>
+                    <span id="diagnose-status"></span>
+                </div>
+                
+                <!-- API检测结果 -->
+                <div class="diagnose-section" id="api-check-result" style="display:none;">
+                    <h3>API连接状态</h3>
+                    <div class="diagnose-content"></div>
+                </div>
+                
+                <!-- ARPM组件报告 -->
+                <div class="diagnose-section" id="arpm-report-section" style="display:none;">
+                    <h3>ARPM组件报告</h3>
+                    <div class="arpm-tabs">
+                        <button class="arpm-tab active" data-tab="components">组件配置</button>
+                        <button class="arpm-tab" data-tab="forgetting">遗忘逻辑</button>
+                        <button class="arpm-tab" data-tab="stats">存储统计</button>
+                    </div>
+                    <div class="arpm-tab-content" id="tab-components"></div>
+                    <div class="arpm-tab-content" id="tab-forgetting" style="display:none;"></div>
+                    <div class="arpm-tab-content" id="tab-stats" style="display:none;"></div>
+                </div>
+                
+                <!-- 在线删除区 -->
+                <div class="diagnose-section">
+                    <h3>在线数据管理</h3>
+                    <div class="delete-tabs">
+                        <button class="delete-tab active" data-tab="kb-delete">知识库块</button>
+                        <button class="delete-tab" data-tab="chat-delete">对话历史块</button>
+                    </div>
+                    <div class="delete-tab-content" id="tab-kb-delete">
+                        <div class="delete-toolbar">
+                            <button id="btn-load-kb-chunks" class="btn-secondary">加载知识库块</button>
+                            <span id="kb-chunks-count"></span>
+                        </div>
+                        <div class="chunks-list" id="kb-chunks-list"></div>
+                    </div>
+                    <div class="delete-tab-content" id="tab-chat-delete" style="display:none;">
+                        <div class="delete-toolbar">
+                            <button id="btn-load-chat-chunks" class="btn-secondary">加载对话历史块</button>
+                            <span id="chat-chunks-count"></span>
+                        </div>
+                        <div class="chunks-list" id="chat-chunks-list"></div>
+                    </div>
+                </div>
+                
+                <!-- 系统健康结果 -->
+                <div class="diagnose-section" id="system-diag-result" style="display:none;">
+                    <h3>系统健康检查</h3>
+                    <div class="diagnose-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RAG检索逻辑帮助弹窗 -->
+    <div class="modal" id="rag-help-modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>📚 ARPM 检索逻辑说明</h2>
+                <button class="btn-close" id="close-rag-help">&times;</button>
+            </div>
+            <div class="modal-body" id="rag-help-content" style="max-height: 70vh; overflow-y: auto;">
+                <!-- 内容由JS动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 提示消息 -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="/static/js/chat.js"></script>
+</body>
+</html>
