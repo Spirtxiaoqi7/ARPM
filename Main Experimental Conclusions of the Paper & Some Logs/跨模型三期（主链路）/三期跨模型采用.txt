@@ -1,0 +1,20 @@
+老环境510w小说文本当噪声，2000字的正常文档，作为知识库底色，整体提问为助手式和询问
+
+二期跨模型(每次切换清空上下文，真正的接力开始了——）
+1-20轮：deepseek-v4-pro     URL:https://api.deepseek.com    (注：官方最新大模型,Moe架构，国产芯片）X
+21-40轮:gpt-5.5     （注：GPT最新大模型，走中转站）X
+41-60轮:claude-opus-4-6               （38-41轮出现时间判断错误，但是在上下文来看其实是正确的，主要是清空后，轮次是从1计算，AI判断为4本身无错误，召回也确实存在，说明在prompt中让AI应该更注意物理时间，属于方法设计失误，非工程错误，可以接受，但最早一轮成功找到了具体的时间，说明物理时间是起作用的）
+61-80轮gemini-3-pro-preview          
+81-100轮:Pro/zai-org/GLM-5.1    URL：https://api.siliconflow.cn/v1（81轮次出现LLM调用失败-报错为：超时，是URL不稳定，后续修复了，但决定不改动日志）
+101-120轮：Pro/moonshotai/Kimi-K2.6X  (108轮出现LLM调用失败-报错为：超时，排查为硅基流动API对外网的延迟问题，现关闭VPN，解决了问题，并作为非工程失误写入报告，括号内容完美抗性）
+121-140轮：Pro/Qwen/Qwen2.5-7B-Instruct+Qwen/131轮换Qwen2.5-7B-Instruct  (小模型开始不稳定，输出乱码，136轮换个Qwen/Qwen3-8B试试，8B力挽狂澜,在污染的上下文直接打穿，有力证明了部分小模型扛得住这套系统，2.5是因为测试边界，效果不好，但在意料之中）
+141-160轮：LongCat-Flash-Chat   key：ak_2TG00L1pA1oN0fa1Rg0Ko7Rw2D68u   URL:https://api.longcat.chat/openai  (表现不错，美味）
+161-170轮：MiniMAX-M2-Her（专用角色扮演大模型M2-her)      URL:https://api.minimaxi.com/v1/text/chatcompletion_v2
+(依旧拉完了，专用模型通病，但收尾了，无所谓了，说明专业模型确实不合适，但还好，后面几轮正常了，最后两句又抽风了）
+
+
+
+
+
+
+
