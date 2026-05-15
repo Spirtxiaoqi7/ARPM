@@ -252,11 +252,18 @@ This project is released under the license included in `LICENSE`.
 
 The paper citation will be added after the arXiv preprint is available.
 
+```markdown
+## Citation
+
+如果你在研究中使用 ARPM v4.0，请引用以下 arXiv 预印本：
+
 ```bibtex
-@misc{arpm-v4,
-  title  = {ARPM v4.0: Analysis-Based Role-Playing with Memory},
-  author = {To be updated},
-  year   = {2026},
-  note   = {arXiv coming soon}
+@misc{zhao2026arpm,
+  title        = {A Heterogeneous Temporal Memory Governance Framework for Long-Term LLM Persona Consistency},
+  author       = {Zhao, Yang and Wang, Huan and Li, Yingshuo and Tu, Haomiao and Lin, Hujite},
+  year         = {2026},
+  eprint       = {2605.14802},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.AI},
+  url          = {https://arxiv.org/abs/2605.14802}
 }
-```
