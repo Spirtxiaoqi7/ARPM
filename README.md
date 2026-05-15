@@ -19,7 +19,7 @@ ARPM v4.0, short for **Analysis-Based Role-Playing with Memory**, is an open-sou
 
 本项目面向两类场景：一类是可复现实验和学术研究，另一类是自由对话、角色扮演和个人知识库交互。系统默认提供前后端一体化运行方式，也支持 Docker 部署，便于在本地实验、课程项目、论文复现和开源社区协作中使用。
 
-> arXiv: coming soon. 论文地址会在预印本发布后补充到这里。
+> arXiv: (https://arxiv.org/abs/2605.14802)
 
 ## Highlights
 
