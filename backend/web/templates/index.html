@@ -174,6 +174,16 @@
                         <label id="label-user-persona">你的人物设定（可选）</label>
                         <textarea id="cfg-user-persona" rows="2" placeholder="描述你自己在这个对话中的身份、背景等，帮助AI更好地理解你。例如：我是一名高中生，性格内向，喜欢科幻小说..."></textarea>
                     </div>
+                    <div class="form-item avatar-setting-row">
+                        <label id="label-user-avatar">用户头像</label>
+                        <div class="avatar-setting-controls">
+                            <div id="user-avatar-preview" class="avatar-preview" data-role="user">我</div>
+                            <input type="file" id="user-avatar-input" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" style="display:none">
+                            <button type="button" id="upload-user-avatar" class="btn-secondary avatar-upload-button">上传用户头像</button>
+                            <button type="button" id="reset-user-avatar" class="btn-secondary avatar-reset-button">恢复默认</button>
+                        </div>
+                        <div class="form-hint">头像只作用于当前视觉主题，聊天风格和研究风格互不复用。</div>
+                    </div>
                 </div>
 
                 <div class="config-section">
@@ -185,6 +195,16 @@
                     <div class="form-item">
                         <label id="label-system-prompt">角色设定</label>
                         <textarea id="cfg-system-prompt" rows="4" placeholder="详细描述AI角色的性格、背景、说话风格、行为习惯等。例如：你是一位温柔耐心的语文教师，说话文雅，喜欢用古诗词表达情感..."></textarea>
+                    </div>
+                    <div class="form-item avatar-setting-row">
+                        <label id="label-assistant-avatar">AI 角色头像</label>
+                        <div class="avatar-setting-controls">
+                            <div id="assistant-avatar-preview" class="avatar-preview" data-role="assistant">AI</div>
+                            <input type="file" id="assistant-avatar-input" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" style="display:none">
+                            <button type="button" id="upload-assistant-avatar" class="btn-secondary avatar-upload-button">上传 AI 头像</button>
+                            <button type="button" id="reset-assistant-avatar" class="btn-secondary avatar-reset-button">恢复默认</button>
+                        </div>
+                        <div class="form-hint">切换主题后会使用该主题单独配置的头像。</div>
                     </div>
                 </div>
 

@@ -8,6 +8,9 @@ from typing import List, Dict, Optional
 from datetime import datetime
 
 from config import MEMORY_DB_PATH
+from utils.app_logger import get_app_logger
+
+app_logger = get_app_logger()
 
 class MemoryStore:
     """会话记忆存储器"""
@@ -27,6 +30,7 @@ class MemoryStore:
                     return json.load(f)
             except Exception as e:
                 print(f"[ERROR] Failed to load session {session_id}: {e}")
+                app_logger.exception("failed to load session session_id=%s", session_id)
         
         # 返回默认结构
         return {
@@ -47,6 +51,7 @@ class MemoryStore:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
             print(f"[ERROR] Failed to save session {session_id}: {e}")
+            app_logger.exception("failed to save session session_id=%s", session_id)
     
     async def save_session_async(self, session_id: str, data: Dict):
         """异步保存会话（用于非关键操作）"""
@@ -69,6 +74,7 @@ class MemoryStore:
                     })
         except Exception as e:
             print(f"[ERROR] Failed to list sessions: {e}")
+            app_logger.exception("failed to list sessions")
         
         # 按时间倒序
         sessions.sort(key=lambda x: x["created_at"], reverse=True)
@@ -83,6 +89,7 @@ class MemoryStore:
                 return True
             except Exception as e:
                 print(f"[ERROR] Failed to delete session {session_id}: {e}")
+                app_logger.exception("failed to delete session session_id=%s", session_id)
         return False
     
     def generate_session_name(self) -> str:

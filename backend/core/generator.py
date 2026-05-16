@@ -40,7 +40,8 @@ class Generator:
         regeneration_config: Optional[Dict] = None,
         history: Optional[List[Dict]] = None,
         tuning_config: Optional[Dict] = None,
-        protocol_config: Optional[Dict] = None
+        protocol_config: Optional[Dict] = None,
+        logging_context: Optional[Dict] = None
     ) -> Dict:
         """
         生成回复主入口
@@ -80,7 +81,9 @@ class Generator:
             system_prompt=system_prompt,
             user_name=user_name,
             user_persona=user_persona,
-            character_name=character_name
+            character_name=character_name,
+            logging_context=logging_context,
+            tuning_config=tuning_config
         )
         
         # 首次调用LLM
@@ -149,7 +152,8 @@ class Generator:
                 api_config=api_config,
                 regen_config=regen_cfg,
                 history=history,
-                context=user_input
+                context=user_input,
+                tuning_config=tuning_config
             )
             
             return {
@@ -259,7 +263,8 @@ class Generator:
         api_config: Dict[str, str],
         regen_config: Dict,
         history: Optional[List[Dict]],
-        context: str
+        context: str,
+        tuning_config: Optional[Dict] = None
     ) -> Dict:
         """
         执行验证和重生成
@@ -464,7 +469,9 @@ class Generator:
         system_prompt: str = "",
         user_name: str = "",
         user_persona: str = "",
-        character_name: str = ""
+        character_name: str = "",
+        logging_context: Optional[Dict] = None,
+        tuning_config: Optional[Dict] = None
     ) -> str:
         """构建完整Prompt - 强化角色扮演模式"""
         
@@ -473,7 +480,20 @@ class Generator:
         
         # 格式化上下文（带双时间标签）
         context_str = self._format_context_with_timestamps(rag_context)
+        log_context = dict(logging_context or {})
+        ablation_config = log_context.get("ablation_config") or {}
+        log_payload_context = {k: v for k, v in log_context.items() if k != "ablation_config"}
+        recall_summary = {
+            "knowledge_count": len((rag_context or {}).get("knowledge", [])),
+            "chat_history_count": len((rag_context or {}).get("chat_history", [])),
+            "context_injected": bool(context_str.strip()),
+            "bm25_enabled": ablation_config.get("bm25_enabled"),
+            "rrf_enabled": tuning_config.get("rrf_k") is not None if tuning_config else None,
+            "top_k": tuning_config.get("knowledge_k") if tuning_config else None,
+            "similarity_threshold": tuning_config.get("similarity_threshold") if tuning_config else None,
+        }
         log_admin("A", {
+            **log_payload_context,
             "event": "recall_context_injected",
             "current_round": current_round,
             "model": (api_config or {}).get("model") or "unknown-model",
@@ -481,6 +501,7 @@ class Generator:
             "user_name": user_name,
             "character_name": character_name,
             "context": context_str,
+            "recall_summary": recall_summary,
         })
         
         # 获取角色信息

@@ -15,9 +15,11 @@ from storage.memory_store import memory_store
 from storage.vector_store import vector_store
 from utils.time_utils import DualTimestamp
 from utils.admin_logger import log_admin
+from utils.app_logger import get_app_logger
 from config import get_ablation_config, sanitize_tuning_config
 
 chat_bp = Blueprint('chat', __name__)
+app_logger = get_app_logger()
 
 # Session-scoped generation state used by cancellation.
 # Structure: {session_id: {'cancelled': bool, 'timestamp': datetime}}
@@ -50,6 +52,55 @@ def _model_label(api_config: dict) -> str:
 
 def _with_model_prefix(text: str, api_config: dict) -> str:
     return f"[model={_model_label(api_config)}] {text or ''}"
+
+
+def _normalize_theme(value: str) -> str:
+    return "research" if value == "research" else "chat"
+
+
+def _request_theme(data: dict) -> str:
+    return _normalize_theme(request.headers.get("X-ARPM-Theme") or (data or {}).get("theme"))
+
+
+def _session_display_title(session_name: str, session_label: str, session_id: str) -> str:
+    if session_name and session_label and session_name == session_label:
+        return session_name
+    if session_name and session_label:
+        return f"{session_name}（{session_label}）"
+    return session_name or session_label or session_id
+
+
+def _get_session_log_context(session_id: str, request_data: dict, round_num, api_config: dict, session_data: dict | None = None) -> dict:
+    session_data = session_data or memory_store.load_session(session_id)
+    # session_name is the existing primary session name. session_label is an
+    # optional UI-only note and must not replace session_name or affect prompt/RAG.
+    session_name = session_data.get("session_name") or session_id
+    session_label = session_data.get("session_label") or ""
+    theme = _normalize_theme((request_data or {}).get("_ui_theme") or (request_data or {}).get("theme"))
+    return {
+        "session_id": session_id,
+        "session_name": session_name,
+        "session_label": session_label,
+        "display_title": _session_display_title(session_name, session_label, session_id),
+        "theme": theme,
+        "round": round_num,
+        "model": _model_label(api_config),
+    }
+
+
+def _cot_summary(protocol_info: dict | None, regeneration_info: dict | None) -> dict:
+    protocol_info = protocol_info or {}
+    regeneration_info = regeneration_info or {}
+    protocol_status = "needs_repair" if protocol_info.get("needs_repair") else "ok"
+    repair_status = "repaired" if protocol_info.get("was_repaired") else "not_repaired"
+    if protocol_info.get("needs_repair") and not protocol_info.get("was_repaired"):
+        repair_status = "repair_needed"
+    return {
+        "protocol_status": protocol_status,
+        "repair_status": repair_status,
+        "analysis_visible": bool(protocol_info.get("has_analysis_tag")),
+        "regeneration_used": bool(regeneration_info.get("attempts", 0)),
+    }
 
 
 def get_session_config(session_id: str) -> dict:
@@ -154,6 +205,7 @@ def save_chat_config():
 def handle_chat():
     """Handle a chat request for the current session."""
     data = request.get_json() or {}
+    data["_ui_theme"] = _request_theme(data)
     
     # Extract and validate input payload.
     user_input = data.get('message', '').strip()
@@ -243,6 +295,13 @@ def handle_chat():
     
     try:
         print(f"[Chat] Processing request for session {session_id}, round {current_round}")
+        app_logger.info(
+            "chat request started session_id=%s round=%s model=%s theme=%s",
+            session_id,
+            current_round,
+            _model_label(api_config),
+            data.get("_ui_theme"),
+        )
         
         # 检查是否已取消。
         if generation_states.get(session_id, {}).get('cancelled'):
@@ -261,6 +320,13 @@ def handle_chat():
             tuning_config=tuning_config
         )
         print(f"[Chat] Retrieved: {len(rag_context['knowledge'])} knowledge, {len(rag_context['chat_history'])} chat history")
+        app_logger.info(
+            "rag retrieved session_id=%s round=%s knowledge_count=%s chat_history_count=%s",
+            session_id,
+            current_round,
+            len(rag_context.get('knowledge', [])),
+            len(rag_context.get('chat_history', [])),
+        )
         
         # 搴旂敤鏃舵€佹潈閲?
         temporal_enabled = ablation_config.get('temporal_enabled', True)
@@ -289,6 +355,7 @@ def handle_chat():
         session_data = memory_store.load_session(session_id)
         history = session_data.get('messages', [])[-10:]
         regen_config = ablation_config.get('regeneration', {})
+        log_context = _get_session_log_context(session_id, data, current_round, api_config, session_data)
         
         result = generator.generate(
             user_input=user_input,
@@ -303,7 +370,11 @@ def handle_chat():
             regeneration_config=regen_config,
             history=history,
             tuning_config=tuning_config,
-            protocol_config=protocol_config
+            protocol_config=protocol_config,
+            logging_context={
+                **log_context,
+                "ablation_config": ablation_config,
+            }
         )
         
         # 检查是否已取消。
@@ -314,6 +385,7 @@ def handle_chat():
         physical_time = datetime.now().isoformat()
         combined_text = f"{user_name}: {user_input}\n{character_name}: {result['reply']}"
         log_admin("B", {
+            **log_context,
             "event": "dialog_turn",
             "session_id": session_id,
             "round": current_round,
@@ -325,8 +397,14 @@ def handle_chat():
             "user_input_with_model": _with_model_prefix(user_input, api_config),
             "assistant_reply": result.get('reply', ''),
             "assistant_reply_with_model": _with_model_prefix(result.get('reply', ''), api_config),
+            "input_length": len(user_input or ""),
+            "reply_length": len(result.get('reply', '') or ""),
+            "generation_success": result.get("status") != "error",
+            "is_regenerate": False,
         })
+        cot_summary = _cot_summary(result.get('protocol_info'), result.get('regeneration_info'))
         log_admin("C", {
+            **log_context,
             "event": "cot_analysis",
             "session_id": session_id,
             "round": current_round,
@@ -335,6 +413,7 @@ def handle_chat():
             "analysis": result.get('analysis', ''),
             "regeneration_info": result.get('regeneration_info'),
             "protocol_info": result.get('protocol_info'),
+            **cot_summary,
         })
         
         chat_atom = {
@@ -440,6 +519,7 @@ def handle_chat():
         
     except Exception as e:
         print(f"[ERROR] Chat failed: {e}")
+        app_logger.exception("chat request failed session_id=%s round=%s", session_id, current_round)
         import traceback
         traceback.print_exc()
         return jsonify({'error': f'生成失败: {str(e)}'}), 500
@@ -469,6 +549,7 @@ def cancel_generation():
 def regenerate_message():
     """Regenerate the answer for a specific round."""
     data = request.get_json() or {}
+    data["_ui_theme"] = _request_theme(data)
     
     session_id = data.get('session_id')
     round_num = data.get('round')
@@ -483,6 +564,12 @@ def regenerate_message():
             session_id, round_num
         )
         print(f"[Regenerate] Deleted {len(deleted_chunks)} chunks for session {session_id} round {round_num}")
+        app_logger.info(
+            "regenerate started session_id=%s round=%s deleted_chunks=%s",
+            session_id,
+            round_num,
+            len(deleted_chunks),
+        )
         
         # 2. 获取该会话配置，确保角色隔离。
         session_config = get_session_config(session_id)
@@ -542,6 +629,7 @@ def regenerate_message():
         session_data = memory_store.load_session(session_id)
         history = session_data.get('messages', [])[-10:]
         regen_config = ablation_config.get('regeneration', {})
+        log_context = _get_session_log_context(session_id, data, round_num, api_config, session_data)
         
         result = generator.generate(
             user_input=user_input,
@@ -556,13 +644,18 @@ def regenerate_message():
             regeneration_config=regen_config,
             history=history,
             tuning_config=tuning_config,
-            protocol_config=protocol_config
+            protocol_config=protocol_config,
+            logging_context={
+                **log_context,
+                "ablation_config": ablation_config,
+            }
         )
         
         # 5. 将新的向量索引保存到对应 session。
         physical_time = datetime.now().isoformat()
         combined_text = f"{session_config['user_name']}: {user_input}\n{session_config['character_name']}: {result['reply']}"
         log_admin("B", {
+            **log_context,
             "event": "dialog_regenerate",
             "session_id": session_id,
             "round": round_num,
@@ -574,8 +667,14 @@ def regenerate_message():
             "user_input_with_model": _with_model_prefix(user_input, api_config),
             "assistant_reply": result.get('reply', ''),
             "assistant_reply_with_model": _with_model_prefix(result.get('reply', ''), api_config),
+            "input_length": len(user_input or ""),
+            "reply_length": len(result.get('reply', '') or ""),
+            "generation_success": result.get("status") != "error",
+            "is_regenerate": True,
         })
+        cot_summary = _cot_summary(result.get('protocol_info'), result.get('regeneration_info'))
         log_admin("C", {
+            **log_context,
             "event": "cot_regenerate",
             "session_id": session_id,
             "round": round_num,
@@ -584,6 +683,7 @@ def regenerate_message():
             "analysis": result.get('analysis', ''),
             "regeneration_info": result.get('regeneration_info'),
             "protocol_info": result.get('protocol_info'),
+            **cot_summary,
         })
         
         chat_atom = {
@@ -627,6 +727,7 @@ def regenerate_message():
         
     except Exception as e:
         print(f"[ERROR] Regenerate failed: {e}")
+        app_logger.exception("regenerate failed session_id=%s round=%s", session_id, round_num)
         import traceback
         traceback.print_exc()
         return jsonify({'error': f'重新生成失败: {str(e)}'}), 500

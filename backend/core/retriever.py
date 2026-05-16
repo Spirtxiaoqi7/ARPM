@@ -5,7 +5,10 @@ from typing import List, Dict, Optional
 
 from storage.vector_store import vector_store
 from utils.bm25_plus import BM25PlusScorer
+from utils.app_logger import get_app_logger
 from config import RetrievalConfig
+
+app_logger = get_app_logger()
 
 class Retriever:
     """双源检索器"""
@@ -27,6 +30,7 @@ class Retriever:
         self.bm25_scorer = BM25PlusScorer()
         self.bm25_scorer.index_documents(documents)
         print(f"[OK] BM25 index built: {len(documents)} documents")
+        app_logger.info("bm25 index built document_count=%s", len(documents))
     
     def retrieve(
         self,

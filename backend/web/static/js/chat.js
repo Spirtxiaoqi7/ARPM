@@ -1,7 +1,12 @@
 ﻿const STORAGE_KEYS = {
     api: "arpm.api.config",
-    ui: "arpm.ui.config"
+    ui: "arpm.ui.config",
+    currentSession: "arpm.ui.current_session"
 };
+
+const MAX_SESSION_NAME_LENGTH = 40;
+const MAX_SESSION_LABEL_LENGTH = 30;
+const THEME_KEYS = ["chat", "research"];
 
 const I18N = {
     zh: {
@@ -165,6 +170,8 @@ const I18N = {
 const State = {
     sessionId: null,
     sessionName: "",
+    sessionLabel: "",
+    displayTitle: "",
     round: 1,
     messages: [],
     isGenerating: false,
@@ -226,7 +233,11 @@ const State = {
     },
     uiState: null,
     language: "zh",
-    theme: "chat"
+    theme: "chat",
+    themeProfiles: {
+        chat: { avatars: { user: null, assistant: null } },
+        research: { avatars: { user: null, assistant: null } }
+    }
 };
 
 const DOM = {
@@ -318,8 +329,18 @@ const DOM = {
     testResult: document.getElementById("test-result"),
     cfgUserName: document.getElementById("cfg-user-name"),
     cfgUserPersona: document.getElementById("cfg-user-persona"),
+    labelUserAvatar: document.getElementById("label-user-avatar"),
+    userAvatarPreview: document.getElementById("user-avatar-preview"),
+    userAvatarInput: document.getElementById("user-avatar-input"),
+    uploadUserAvatar: document.getElementById("upload-user-avatar"),
+    resetUserAvatar: document.getElementById("reset-user-avatar"),
     cfgCharacterName: document.getElementById("cfg-character-name"),
     cfgSystemPrompt: document.getElementById("cfg-system-prompt"),
+    labelAssistantAvatar: document.getElementById("label-assistant-avatar"),
+    assistantAvatarPreview: document.getElementById("assistant-avatar-preview"),
+    assistantAvatarInput: document.getElementById("assistant-avatar-input"),
+    uploadAssistantAvatar: document.getElementById("upload-assistant-avatar"),
+    resetAssistantAvatar: document.getElementById("reset-assistant-avatar"),
     cfgProtocolMode: document.getElementById("cfg-protocol-mode"),
     cfgReasoningModelMode: document.getElementById("cfg-reasoning-model-mode"),
     cfgAutoRepairResponse: document.getElementById("cfg-auto-repair-response"),
@@ -509,11 +530,11 @@ const Utils = {
 
     async request(url, options = {}) {
         const response = await fetch(url, {
+            ...options,
             headers: {
                 ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
                 ...(options.headers || {})
-            },
-            ...options
+            }
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -599,7 +620,7 @@ function updateRoundText() {
 function updateSessionMeta() {
     const text = I18N[State.language] || I18N.zh;
     if (DOM.sessionMetaId) {
-        DOM.sessionMetaId.textContent = State.sessionName || State.sessionId || text.notCreated;
+        DOM.sessionMetaId.textContent = getDisplayTitle(State.sessionName, State.sessionLabel, State.sessionId) || text.notCreated;
     }
     if (DOM.sessionMetaDate) {
         DOM.sessionMetaDate.textContent = new Date().toLocaleDateString(State.language === "en" ? "en-US" : "zh-CN", {
@@ -610,9 +631,166 @@ function updateSessionMeta() {
     }
 }
 
+function getCurrentThemeKey() {
+    return State.theme === "research" ? "research" : "chat";
+}
+
+function makeEmptyThemeProfiles() {
+    return {
+        chat: { avatars: { user: null, assistant: null } },
+        research: { avatars: { user: null, assistant: null } }
+    };
+}
+
+function getDisplayTitle(sessionName, sessionLabel, sessionId = "") {
+    const name = normalizeSessionName(sessionName) || sessionId || "";
+    const label = normalizeSessionName(sessionLabel);
+    if (!label || label === name) {
+        return name;
+    }
+    return `${name}（${label}）`;
+}
+
 function updateSendButtonState() {
     DOM.btnSend.disabled = State.isGenerating || !DOM.userInput.value.trim();
     DOM.btnStop.style.display = State.isGenerating ? "flex" : "none";
+}
+
+function getAvatarInfo(role) {
+    return State.themeProfiles?.[getCurrentThemeKey()]?.avatars?.[role] || null;
+}
+
+function getAvatarUrlByRole(role) {
+    return getAvatarInfo(role)?.url || null;
+}
+
+function getDefaultAvatarLabel(role) {
+    return role === "assistant" ? "AI" : "\u6211";
+}
+
+function buildAvatarHtml(role) {
+    const avatarUrl = getAvatarUrlByRole(role);
+    if (avatarUrl) {
+        return `<img src="${Utils.escapeHtml(avatarUrl)}" alt="${role === "assistant" ? "AI" : "\u7528\u6237"}">`;
+    }
+    return getDefaultAvatarLabel(role);
+}
+
+function updateSingleAvatarPreview(role) {
+    const preview = role === "assistant" ? DOM.assistantAvatarPreview : DOM.userAvatarPreview;
+    if (!preview) {
+        return;
+    }
+    preview.innerHTML = buildAvatarHtml(role);
+    preview.classList.toggle("has-image", Boolean(getAvatarUrlByRole(role)));
+}
+
+function updateAvatarPreview() {
+    updateSingleAvatarPreview("user");
+    updateSingleAvatarPreview("assistant");
+}
+
+function loadSessionAvatars(uiSettings = {}) {
+    const themeProfiles = makeEmptyThemeProfiles();
+    const rawProfiles = uiSettings?.theme_profiles || {};
+    for (const theme of THEME_KEYS) {
+        const avatars = rawProfiles?.[theme]?.avatars || {};
+        themeProfiles[theme] = {
+            avatars: {
+                user: avatars.user || null,
+                assistant: avatars.assistant || null
+            }
+        };
+    }
+    // Legacy ui_settings.avatars is kept as chat-theme data only. Research
+    // stays independent and falls back to defaults until explicitly configured.
+    if (!rawProfiles.chat && uiSettings?.avatars) {
+        themeProfiles.chat.avatars.user = uiSettings.avatars.user || null;
+        themeProfiles.chat.avatars.assistant = uiSettings.avatars.assistant || null;
+    }
+    State.themeProfiles = themeProfiles;
+    updateAvatarPreview();
+}
+
+function setThemeAvatar(theme, role, avatarMeta) {
+    const themeKey = theme === "research" ? "research" : "chat";
+    State.themeProfiles = State.themeProfiles || makeEmptyThemeProfiles();
+    State.themeProfiles[themeKey] = State.themeProfiles[themeKey] || { avatars: {} };
+    State.themeProfiles[themeKey].avatars = State.themeProfiles[themeKey].avatars || {};
+    State.themeProfiles[themeKey].avatars[role] = avatarMeta || null;
+}
+
+function applyAvatarToMessages() {
+    DOM.chatContainer?.querySelectorAll(".message").forEach((node) => {
+        const role = node.classList.contains("assistant") ? "assistant" : "user";
+        const avatar = node.querySelector(".message-avatar");
+        if (!avatar) {
+            return;
+        }
+        avatar.innerHTML = buildAvatarHtml(role);
+        avatar.classList.toggle("has-image", Boolean(getAvatarUrlByRole(role)));
+    });
+}
+
+function validateAvatarFile(file) {
+    if (!file) {
+        throw new Error("\u8bf7\u9009\u62e9\u5934\u50cf\u56fe\u7247");
+    }
+    const allowedTypes = ["image/png", "image/jpeg", "image/webp"];
+    const allowedExt = /\.(png|jpg|jpeg|webp)$/i;
+    if (!allowedTypes.includes(file.type) && !allowedExt.test(file.name || "")) {
+        throw new Error("\u4ec5\u652f\u6301 png\u3001jpg\u3001jpeg\u3001webp \u56fe\u7247");
+    }
+    if (file.size > 2 * 1024 * 1024) {
+        throw new Error("\u5934\u50cf\u56fe\u7247\u4e0d\u80fd\u8d85\u8fc7 2MB");
+    }
+}
+
+async function ensureAvatarSessionExists() {
+    if (!State.sessionId) {
+        State.sessionId = Utils.generateSessionId();
+        saveCurrentSessionId();
+    }
+    await persistSessionConfig();
+}
+
+async function uploadSessionAvatar(role, file, theme = getCurrentThemeKey()) {
+    validateAvatarFile(file);
+    await ensureAvatarSessionExists();
+
+    const formData = new FormData();
+    formData.append("role", role);
+    formData.append("theme", theme);
+    formData.append("avatar", file);
+    const result = await Utils.request(`/api/session/${encodeURIComponent(State.sessionId)}/avatar`, {
+        method: "POST",
+        body: formData
+    });
+
+    setThemeAvatar(theme, role, result.avatar || {
+        url: result.avatar_url,
+        role,
+        theme
+    });
+    updateAvatarPreview();
+    applyAvatarToMessages();
+    Utils.showToast("\u5934\u50cf\u5df2\u66f4\u65b0");
+}
+
+async function deleteSessionAvatar(role, theme = getCurrentThemeKey()) {
+    if (!State.sessionId) {
+        setThemeAvatar(theme, role, null);
+        updateAvatarPreview();
+        applyAvatarToMessages();
+        return;
+    }
+    await Utils.request(`/api/session/${encodeURIComponent(State.sessionId)}/avatar?role=${encodeURIComponent(role)}&theme=${encodeURIComponent(theme)}`, {
+        method: "DELETE"
+    });
+    setThemeAvatar(theme, role, null);
+    updateAvatarPreview();
+    applyAvatarToMessages();
+    Utils.showToast("\u5df2\u6062\u590d\u9ed8\u8ba4\u5934\u50cf");
 }
 
 function setupSettingsPanels() {
@@ -690,9 +868,15 @@ function renderLanguage() {
     DOM.sectionUserTitle && (DOM.sectionUserTitle.textContent = text.userTitle);
     DOM.labelUserName && (DOM.labelUserName.textContent = text.userName);
     DOM.labelUserPersona && (DOM.labelUserPersona.textContent = text.userPersona);
+    DOM.labelUserAvatar && (DOM.labelUserAvatar.textContent = State.language === "en" ? "User avatar" : "\u7528\u6237\u5934\u50cf");
+    DOM.uploadUserAvatar && (DOM.uploadUserAvatar.textContent = State.language === "en" ? "Upload user avatar" : "\u4e0a\u4f20\u7528\u6237\u5934\u50cf");
+    DOM.resetUserAvatar && (DOM.resetUserAvatar.textContent = State.language === "en" ? "Reset default" : "\u6062\u590d\u9ed8\u8ba4");
     DOM.sectionAiTitle && (DOM.sectionAiTitle.textContent = text.aiTitle);
     DOM.labelCharacterName && (DOM.labelCharacterName.textContent = text.characterName);
     DOM.labelSystemPrompt && (DOM.labelSystemPrompt.textContent = text.systemPrompt);
+    DOM.labelAssistantAvatar && (DOM.labelAssistantAvatar.textContent = State.language === "en" ? "AI role avatar" : "AI \u89d2\u8272\u5934\u50cf");
+    DOM.uploadAssistantAvatar && (DOM.uploadAssistantAvatar.textContent = State.language === "en" ? "Upload AI avatar" : "\u4e0a\u4f20 AI \u5934\u50cf");
+    DOM.resetAssistantAvatar && (DOM.resetAssistantAvatar.textContent = State.language === "en" ? "Reset default" : "\u6062\u590d\u9ed8\u8ba4");
     DOM.sectionBasicTitle && (DOM.sectionBasicTitle.textContent = text.basicTitle);
     DOM.basicDesc && (DOM.basicDesc.textContent = text.basicDesc);
     DOM.sectionProtocolTitle && (DOM.sectionProtocolTitle.textContent = text.protocolTitle);
@@ -771,10 +955,32 @@ function saveUiConfig() {
     }));
 }
 
+function getSavedCurrentSessionId() {
+    try {
+        return window.localStorage.getItem(STORAGE_KEYS.currentSession) || "";
+    } catch (error) {
+        console.warn("Read current session failed", error);
+        return "";
+    }
+}
+
+function saveCurrentSessionId() {
+    if (!State.sessionId) {
+        return;
+    }
+    try {
+        window.localStorage.setItem(STORAGE_KEYS.currentSession, State.sessionId);
+    } catch (error) {
+        console.warn("Save current session failed", error);
+    }
+}
+
 function setTheme(theme) {
     State.theme = theme === "research" ? "research" : "chat";
     renderTheme();
     renderLanguage();
+    updateAvatarPreview();
+    applyAvatarToMessages();
     saveUiConfig();
 }
 
@@ -834,6 +1040,7 @@ function syncStateToForm() {
     updateThresholdLabel();
     updateModelDisplay();
     updateRagToggleState();
+    updateAvatarPreview();
 }
 
 function syncFormToState() {
@@ -907,7 +1114,9 @@ function createMessageElement(message) {
     const roleName = message.role === "assistant"
         ? (State.sessionConfig.character_name || "AI\u52a9\u624b")
         : (State.sessionConfig.user_name || "\u7528\u6237");
-    const avatar = message.role === "assistant" ? "AI" : "\u6211";
+    const avatarRole = message.role === "assistant" ? "assistant" : "user";
+    const avatar = buildAvatarHtml(avatarRole);
+    const avatarClass = getAvatarUrlByRole(avatarRole) ? " has-image" : "";
     const feedback = message.role === "assistant" && !message.pending
         ? `
             <div class="message-feedback">
@@ -921,7 +1130,7 @@ function createMessageElement(message) {
     element.dataset.round = message.round ?? "";
     element.innerHTML = `
         <div class="message-content-wrapper">
-            <div class="message-avatar">${avatar}</div>
+            <div class="message-avatar${avatarClass}">${avatar}</div>
             <div class="message-body">
                 <div class="message-header">${Utils.escapeHtml(roleName)}</div>
                 <div class="message-text">${Utils.formatText(message.content || "")}</div>
@@ -958,13 +1167,84 @@ function renderSessions(items) {
 
     for (const item of items) {
         const button = document.createElement("button");
+        const sessionName = item.session_name || item.name || item.id;
+        const sessionLabel = item.session_label || "";
+        const displayTitle = item.display_title || getDisplayTitle(sessionName, sessionLabel, item.id);
         button.className = `session-item${item.id === State.sessionId ? " active" : ""}`;
         button.dataset.sessionId = item.id;
         button.innerHTML = `
-            <span class="session-name">${Utils.escapeHtml(item.name || item.id)}</span>
-            <span style="font-size:12px;color:var(--text-tertiary);">${Utils.escapeHtml(item.character_name || "AI\u52a9\u624b")}</span>
+            <span class="session-info">
+                <span class="session-name">${Utils.escapeHtml(displayTitle || item.id)}</span>
+                ${sessionLabel && sessionLabel !== sessionName ? `<span class="session-label">${Utils.escapeHtml(sessionLabel)}</span>` : ""}
+                <span class="session-role">${Utils.escapeHtml(item.character_name || "AI\u52a9\u624b")}</span>
+            </span>
+            <span class="session-actions">
+                <span class="session-rename" role="button" tabindex="0" title="\u91cd\u547d\u540d\u4f1a\u8bdd" aria-label="\u91cd\u547d\u540d\u4f1a\u8bdd">\u270e</span>
+                <span class="session-label-edit" role="button" tabindex="0" title="\u7f16\u8f91\u4f1a\u8bdd\u5907\u6ce8" aria-label="\u7f16\u8f91\u4f1a\u8bdd\u5907\u6ce8">#</span>
+                <span class="session-delete" role="button" tabindex="0" title="\u5220\u9664\u4f1a\u8bdd" aria-label="\u5220\u9664\u4f1a\u8bdd">\u00d7</span>
+            </span>
         `;
         button.addEventListener("click", () => switchSession(item.id));
+        const renameButton = button.querySelector(".session-rename");
+        const labelButton = button.querySelector(".session-label-edit");
+        const deleteButton = button.querySelector(".session-delete");
+        renameButton?.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            promptRenameSession(item.id, sessionName || item.id).catch((error) => {
+                console.error(error);
+                Utils.showToast(error.message, "error");
+            });
+        });
+        renameButton?.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" && event.key !== " ") {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            promptRenameSession(item.id, sessionName || item.id).catch((error) => {
+                console.error(error);
+                Utils.showToast(error.message, "error");
+            });
+        });
+        labelButton?.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            promptSessionLabel(item.id, sessionLabel).catch((error) => {
+                console.error(error);
+                Utils.showToast(error.message, "error");
+            });
+        });
+        labelButton?.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" && event.key !== " ") {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            promptSessionLabel(item.id, sessionLabel).catch((error) => {
+                console.error(error);
+                Utils.showToast(error.message, "error");
+            });
+        });
+        deleteButton?.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            deleteSession(item.id, displayTitle || sessionName || item.id).catch((error) => {
+                console.error(error);
+                Utils.showToast(error.message, "error");
+            });
+        });
+        deleteButton?.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" && event.key !== " ") {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            deleteSession(item.id, item.name || item.id).catch((error) => {
+                console.error(error);
+                Utils.showToast(error.message, "error");
+            });
+        });
         DOM.sessionList.appendChild(button);
     }
 }
@@ -1040,9 +1320,19 @@ function exportCurrentSession() {
     link.remove();
 }
 
+function isProtocolRepairPlaceholder(text) {
+    const normalized = String(text || "")
+        .replace(/<\/?analysis>/gi, "")
+        .replace(/[\s\u3000]+/g, "")
+        .replace(/[。．.]+$/g, "");
+    return normalized === "\u534f\u8bae\u4fee\u590d\uff1a\u539f\u8f93\u51fa\u7f3a\u5c11\u663e\u5f0f\u5206\u6790";
+}
+
 function renderAnalysis(analysis, protocolInfo = null) {
-    const displayAnalysis = protocolInfo?.original_analysis || analysis;
-    const protocolBlock = protocolInfo ? `
+    const rawDisplayAnalysis = protocolInfo?.original_analysis || analysis;
+    const displayAnalysis = isProtocolRepairPlaceholder(rawDisplayAnalysis) ? "" : rawDisplayAnalysis;
+    const showProtocolBlock = protocolInfo && !isProtocolRepairPlaceholder(rawDisplayAnalysis);
+    const protocolBlock = showProtocolBlock ? `
         <div class="rag-item" style="margin-bottom:10px;">
             <div class="rag-header">
                 <span class="rag-source">\u534f\u8bae\u8bca\u65ad</span>
@@ -1077,10 +1367,202 @@ async function loadSessions() {
     return sessions;
 }
 
+function normalizeSessionName(name) {
+    return String(name || "").trim();
+}
+
+function validateSessionName(name) {
+    const normalized = normalizeSessionName(name);
+    if (!normalized) {
+        throw new Error("\u4f1a\u8bdd\u540d\u79f0\u4e0d\u80fd\u4e3a\u7a7a");
+    }
+    if (normalized.length > MAX_SESSION_NAME_LENGTH) {
+        throw new Error(`\u4f1a\u8bdd\u540d\u79f0\u4e0d\u80fd\u8d85\u8fc7 ${MAX_SESSION_NAME_LENGTH} \u4e2a\u5b57\u7b26`);
+    }
+    return normalized;
+}
+
+function validateSessionLabel(label) {
+    const normalized = normalizeSessionName(label);
+    if (normalized.length > MAX_SESSION_LABEL_LENGTH) {
+        throw new Error(`\u4f1a\u8bdd\u5907\u6ce8\u4e0d\u80fd\u8d85\u8fc7 ${MAX_SESSION_LABEL_LENGTH} \u4e2a\u5b57\u7b26`);
+    }
+    return normalized;
+}
+
+async function renameSession(sessionId, newName) {
+    const sessionName = validateSessionName(newName);
+    return Utils.request(`/api/session/${encodeURIComponent(sessionId)}/name`, {
+        method: "PATCH",
+        body: JSON.stringify({ session_name: sessionName })
+    });
+}
+
+async function updateSessionLabel(sessionId, label) {
+    const sessionLabel = validateSessionLabel(label);
+    return Utils.request(`/api/session/${encodeURIComponent(sessionId)}/label`, {
+        method: "PATCH",
+        body: JSON.stringify({ session_label: sessionLabel })
+    });
+}
+
+function askSessionName({ title, initialValue = "", confirmText = "\u4fdd\u5b58", allowEmpty = false, maxLength = MAX_SESSION_NAME_LENGTH, inputLabel = "\u4f1a\u8bdd\u663e\u793a\u540d\u79f0", hint = "" }) {
+    return new Promise((resolve) => {
+        const modal = document.createElement("div");
+        modal.className = "modal session-name-modal show";
+        modal.innerHTML = `
+            <div class="modal-content session-name-dialog" role="dialog" aria-modal="true" aria-labelledby="session-name-title">
+                <div class="modal-header">
+                    <h2 id="session-name-title">${Utils.escapeHtml(title)}</h2>
+                    <button type="button" class="btn-close session-name-close" aria-label="\u5173\u95ed">&times;</button>
+                </div>
+                <div class="modal-body session-name-body">
+                    <label for="session-name-input">${Utils.escapeHtml(inputLabel)}</label>
+                    <input id="session-name-input" class="session-name-input" type="text" maxlength="${maxLength}" value="${Utils.escapeHtml(initialValue || "")}" placeholder="\u4f8b\u5982\uff1a\u4ea7\u54c1\u65b9\u6848\u8ba8\u8bba">
+                    <div class="session-name-hint">${Utils.escapeHtml(hint || `\u6700\u591a ${maxLength} \u4e2a\u5b57\u7b26\uff0c\u4ec5\u7528\u4e8e\u5de6\u4fa7\u4f1a\u8bdd\u5217\u8868\u663e\u793a`)}</div>
+                    <div class="session-name-error" aria-live="polite"></div>
+                </div>
+                <div class="modal-footer session-name-footer">
+                    <button type="button" class="btn-secondary session-name-cancel">\u53d6\u6d88</button>
+                    <button type="button" class="btn-primary session-name-confirm">${Utils.escapeHtml(confirmText)}</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        const input = modal.querySelector("#session-name-input");
+        const error = modal.querySelector(".session-name-error");
+        const confirm = modal.querySelector(".session-name-confirm");
+        const cancel = modal.querySelector(".session-name-cancel");
+        const close = modal.querySelector(".session-name-close");
+        let settled = false;
+
+        const cleanup = (value) => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            document.removeEventListener("keydown", handleKeydown);
+            modal.remove();
+            resolve(value);
+        };
+
+        const submit = () => {
+            try {
+                const value = allowEmpty ? normalizeSessionName(input.value) : validateSessionName(input.value);
+                if (allowEmpty && value.length > maxLength) {
+                    throw new Error(`\u4f1a\u8bdd\u5907\u6ce8\u4e0d\u80fd\u8d85\u8fc7 ${maxLength} \u4e2a\u5b57\u7b26`);
+                }
+                cleanup(value);
+            } catch (err) {
+                error.textContent = err.message;
+                input.focus();
+            }
+        };
+
+        function handleKeydown(event) {
+            if (event.key === "Escape") {
+                cleanup(null);
+            }
+            if (event.key === "Enter") {
+                event.preventDefault();
+                submit();
+            }
+        }
+
+        confirm.addEventListener("click", submit);
+        cancel.addEventListener("click", () => cleanup(null));
+        close.addEventListener("click", () => cleanup(null));
+        modal.addEventListener("click", (event) => {
+            if (event.target === modal) {
+                cleanup(null);
+            }
+        });
+        input.addEventListener("input", () => {
+            error.textContent = "";
+        });
+        document.addEventListener("keydown", handleKeydown);
+
+        window.requestAnimationFrame(() => {
+            input.focus();
+            input.select();
+        });
+    });
+}
+
+async function promptRenameSession(sessionId, currentName = "") {
+    const sessionName = await askSessionName({
+        title: "\u91cd\u547d\u540d\u4f1a\u8bdd",
+        initialValue: currentName || "",
+        confirmText: "\u4fdd\u5b58"
+    });
+    if (sessionName === null) {
+        return;
+    }
+    const result = await renameSession(sessionId, sessionName);
+    if (sessionId === State.sessionId) {
+        State.sessionName = result.session_name || sessionName;
+        State.sessionLabel = result.session_label || State.sessionLabel || "";
+        State.displayTitle = result.display_title || getDisplayTitle(State.sessionName, State.sessionLabel, State.sessionId);
+        updateSessionMeta();
+    }
+    await loadSessions();
+    Utils.showToast("\u4f1a\u8bdd\u540d\u79f0\u5df2\u66f4\u65b0");
+}
+
+async function promptSessionLabel(sessionId, currentLabel = "") {
+    const sessionLabel = await askSessionName({
+        title: "\u7f16\u8f91\u4f1a\u8bdd\u5907\u6ce8",
+        initialValue: currentLabel || "",
+        confirmText: "\u4fdd\u5b58",
+        allowEmpty: true,
+        maxLength: MAX_SESSION_LABEL_LENGTH,
+        inputLabel: "\u4f1a\u8bdd\u5907\u6ce8\u540d",
+        hint: `\u6700\u591a ${MAX_SESSION_LABEL_LENGTH} \u4e2a\u5b57\u7b26\uff0c\u53ef\u7559\u7a7a\uff0c\u4e0d\u53c2\u4e0e prompt\u3001RAG \u6216\u6587\u4ef6\u540d`
+    });
+    if (sessionLabel === null) {
+        return;
+    }
+    const result = await updateSessionLabel(sessionId, sessionLabel);
+    if (sessionId === State.sessionId) {
+        State.sessionName = result.session_name || State.sessionName;
+        State.sessionLabel = result.session_label || "";
+        State.displayTitle = result.display_title || getDisplayTitle(State.sessionName, State.sessionLabel, State.sessionId);
+        updateSessionMeta();
+    }
+    await loadSessions();
+    Utils.showToast(sessionLabel ? "\u4f1a\u8bdd\u5907\u6ce8\u5df2\u66f4\u65b0" : "\u4f1a\u8bdd\u5907\u6ce8\u5df2\u6e05\u7a7a");
+}
+
+async function deleteSession(sessionId, sessionName = "") {
+    const label = sessionName || sessionId;
+    if (!window.confirm(`\u786e\u5b9a\u5220\u9664\u4f1a\u8bdd\u300c${label}\u300d\u5417\uff1f`)) {
+        return;
+    }
+
+    await Utils.request(`/api/session/${encodeURIComponent(sessionId)}`, { method: "DELETE" });
+    if (sessionId === State.sessionId) {
+        window.localStorage.removeItem(STORAGE_KEYS.currentSession);
+        const sessions = await loadSessions();
+        if (sessions.length > 0) {
+            await loadHistory(sessions[0].id);
+            await loadSessions();
+        } else {
+            createNewSession();
+        }
+    } else {
+        await loadSessions();
+    }
+    await refreshUiState();
+    Utils.showToast("\u4f1a\u8bdd\u5df2\u5220\u9664");
+}
+
 async function loadHistory(sessionId) {
     const data = await Utils.request(`/api/history/${sessionId}`);
     State.sessionId = data.session_id;
     State.sessionName = data.session_name || data.session_id;
+    State.sessionLabel = data.session_label || "";
+    State.displayTitle = data.display_title || getDisplayTitle(State.sessionName, State.sessionLabel, data.session_id);
     State.messages = data.messages || [];
     State.round = (data.last_round || 0) + 1;
     State.sessionConfig = { ...State.sessionConfig, ...(data.config || {}) };
@@ -1088,10 +1570,12 @@ async function loadHistory(sessionId) {
     State.chunkConfig = { ...State.chunkConfig, ...(data.config?.chunk_config || {}) };
     State.tuning = { ...State.tuning, ...(data.config?.tuning_config || {}) };
     State.ablation.similarity_threshold = State.tuning.similarity_threshold;
+    loadSessionAvatars(data.ui_settings || {});
     syncStateToForm();
     renderMessages();
     renderRagContext(null);
     renderAnalysis("");
+    saveCurrentSessionId();
 }
 
 async function switchSession(sessionId) {
@@ -1106,18 +1590,46 @@ async function switchSession(sessionId) {
 function createNewSession() {
     State.sessionId = Utils.generateSessionId();
     State.sessionName = "";
+    State.sessionLabel = "";
+    State.displayTitle = "";
     State.messages = [];
     State.round = 1;
+    loadSessionAvatars({});
     renderMessages();
     renderRagContext(null);
     renderAnalysis("");
+    saveCurrentSessionId();
     loadSessions().catch(console.error);
     Utils.setStatus("\u65b0\u4f1a\u8bdd\u5df2\u521b\u5efa");
+}
+
+async function createNamedSession() {
+    const sessionName = await askSessionName({
+        title: "\u65b0\u5efa\u4f1a\u8bdd",
+        initialValue: "",
+        confirmText: "\u521b\u5efa"
+    });
+    if (sessionName === null) {
+        return;
+    }
+
+    createNewSession();
+    try {
+        const result = await renameSession(State.sessionId, sessionName);
+        State.sessionName = result.session_name || sessionName;
+        State.sessionLabel = result.session_label || "";
+        State.displayTitle = result.display_title || getDisplayTitle(State.sessionName, State.sessionLabel, State.sessionId);
+        updateSessionMeta();
+        await loadSessions();
+    } catch (error) {
+        Utils.showToast(error.message, "error");
+    }
 }
 
 async function persistSessionConfig() {
     if (!State.sessionId) {
         State.sessionId = Utils.generateSessionId();
+        saveCurrentSessionId();
     }
     syncFormToState();
     saveLocalApiConfig();
@@ -1211,6 +1723,7 @@ async function sendMessage() {
     try {
         const result = await Utils.request("/api/chat", {
             method: "POST",
+            headers: { "X-ARPM-Theme": getCurrentThemeKey() },
             body: JSON.stringify(buildChatPayload(content))
         });
 
@@ -1230,6 +1743,7 @@ async function sendMessage() {
         renderMessages();
         renderRagContext(result.rag_context);
         renderAnalysis(result.analysis || "", result.protocol_info || null);
+        saveCurrentSessionId();
         await loadSessions();
         Utils.setStatus("\u5df2\u5b8c\u6210", "success");
     } catch (error) {
@@ -1272,6 +1786,7 @@ async function regenerateRound(round) {
         Utils.setStatus(`\u6b63\u5728\u91cd\u65b0\u751f\u6210\u7b2c ${round} \u8f6e...`);
         const result = await Utils.request("/api/chat/regenerate", {
             method: "POST",
+            headers: { "X-ARPM-Theme": getCurrentThemeKey() },
             body: JSON.stringify({
                 ...buildChatPayload(userMessage.content),
                 round: Number(round)
@@ -1726,7 +2241,10 @@ function bindEvents() {
         Utils.showToast(error.message, "error");
     }));
     DOM.btnStop.addEventListener("click", () => cancelGeneration().catch(console.error));
-    DOM.btnNewChat.addEventListener("click", createNewSession);
+    DOM.btnNewChat.addEventListener("click", () => createNamedSession().catch((error) => {
+        console.error(error);
+        Utils.showToast(error.message, "error");
+    }));
     DOM.btnExportCurrent?.addEventListener("click", exportCurrentSession);
     DOM.btnGlobalSearch?.addEventListener("click", async () => {
         const text = I18N[State.language] || I18N.zh;
@@ -1828,6 +2346,34 @@ function bindEvents() {
 
     DOM.cfgSimilarityThreshold.addEventListener("input", updateThresholdLabel);
     DOM.cfgRagEnabled.addEventListener("change", updateRagToggleState);
+    DOM.uploadUserAvatar?.addEventListener("click", () => DOM.userAvatarInput?.click());
+    DOM.uploadAssistantAvatar?.addEventListener("click", () => DOM.assistantAvatarInput?.click());
+    DOM.userAvatarInput?.addEventListener("change", async () => {
+        const [file] = DOM.userAvatarInput.files || [];
+        try {
+            await uploadSessionAvatar("user", file);
+        } catch (error) {
+            Utils.showToast(error.message, "error");
+        } finally {
+            DOM.userAvatarInput.value = "";
+        }
+    });
+    DOM.assistantAvatarInput?.addEventListener("change", async () => {
+        const [file] = DOM.assistantAvatarInput.files || [];
+        try {
+            await uploadSessionAvatar("assistant", file);
+        } catch (error) {
+            Utils.showToast(error.message, "error");
+        } finally {
+            DOM.assistantAvatarInput.value = "";
+        }
+    });
+    DOM.resetUserAvatar?.addEventListener("click", () => deleteSessionAvatar("user").catch((error) => {
+        Utils.showToast(error.message, "error");
+    }));
+    DOM.resetAssistantAvatar?.addEventListener("click", () => deleteSessionAvatar("assistant").catch((error) => {
+        Utils.showToast(error.message, "error");
+    }));
     document.querySelectorAll(".tuning-preset").forEach((button) => {
         button.addEventListener("click", () => {
             applyTuningPreset(button.dataset.preset);
@@ -1980,7 +2526,9 @@ async function init() {
     try {
         const sessions = await loadSessions();
         if (sessions.length > 0) {
-            await loadHistory(sessions[0].id);
+            const savedSessionId = getSavedCurrentSessionId();
+            const restoredSession = sessions.find((item) => item.id === savedSessionId);
+            await loadHistory((restoredSession || sessions[0]).id);
             await loadSessions();
         } else {
             createNewSession();

@@ -10,9 +10,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from flask import Flask, send_from_directory, render_template
 from config import FlaskConfig, ensure_directories
+from utils import admin_logger
+from utils.app_logger import get_app_logger
 
 # 确保目录存在
 ensure_directories()
+app_logger = get_app_logger()
 
 # 创建Flask应用
 app = Flask(
@@ -54,6 +57,12 @@ def internal_error(e):
 if __name__ == '__main__':
     port = FlaskConfig.PORT
     debug = FlaskConfig.DEBUG
+    app_logger.info("service starting port=%s debug=%s", port, debug)
+    app_logger.info(
+        "admin logger loaded schema_version=%s module_path=%s",
+        admin_logger.SCHEMA_VERSION,
+        admin_logger.__file__,
+    )
     
     print("=" * 60)
     print(f"  ARPM v4.0 智能对话系统")

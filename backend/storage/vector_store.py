@@ -25,6 +25,9 @@ import shutil
 
 from config import VECTOR_DB_PATH, MODEL_PATH
 from storage.schema import TextChunk
+from utils.app_logger import get_app_logger
+
+app_logger = get_app_logger()
 
 
 def _is_ascii_path(path: str) -> bool:
@@ -104,10 +107,13 @@ class DualVectorStore:
                 self.encoder = SentenceTransformer(model_path)
                 self.dim = self.encoder.get_sentence_embedding_dimension()
                 print(f"[OK] Loaded model: {model_path}, dim={self.dim}")
+                app_logger.info("model loaded dim=%s", self.dim)
             except Exception as e:
                 print(f"[ERROR] Failed to load model: {e}")
+                app_logger.exception("failed to load model")
         else:
             print(f"[WARNING] Model not found: {model_path}")
+            app_logger.warning("model not found")
 
     def _encode_texts(self, texts, normalize: bool = False):
         """Encode texts with optional embedding normalization."""
@@ -388,8 +394,15 @@ class DualVectorStore:
                 _faiss_write_index(chat_index, os.path.join(session_dir, "faiss.index"))
             
             print(f"[OK] Saved session {session_id}: {len(chunks)} chunks, {chat_index.ntotal if chat_index else 0} vectors")
+            app_logger.info(
+                "chat vector store saved session_id=%s chunk_count=%s vector_count=%s",
+                session_id,
+                len(chunks),
+                chat_index.ntotal if chat_index else 0,
+            )
         except Exception as e:
             print(f"[ERROR] Failed to save session {session_id}: {e}")
+            app_logger.exception("failed to save chat vector store session_id=%s", session_id)
             import traceback
             traceback.print_exc()
     
@@ -555,14 +568,21 @@ class DualVectorStore:
         print(f"[Knowledge] Loading from {self.knowledge_dir}")
         print(f"[Knowledge] Metadata exists: {os.path.exists(meta_path)}")
         print(f"[Knowledge] Index exists: {os.path.exists(index_path)}")
+        app_logger.info(
+            "knowledge store loading metadata_exists=%s index_exists=%s",
+            os.path.exists(meta_path),
+            os.path.exists(index_path),
+        )
         
         if os.path.exists(meta_path):
             try:
                 with open(meta_path, 'r', encoding='utf-8') as f:
                     self.knowledge_chunks = json.load(f)
                 print(f"[Knowledge] Loaded {len(self.knowledge_chunks)} chunks from metadata")
+                app_logger.info("knowledge metadata loaded chunk_count=%s", len(self.knowledge_chunks))
             except Exception as e:
                 print(f"[ERROR] Failed to load knowledge metadata: {e}")
+                app_logger.exception("failed to load knowledge metadata")
                 self.knowledge_chunks = []
         else:
             print(f"[Knowledge] No metadata file found")
@@ -572,12 +592,14 @@ class DualVectorStore:
             try:
                 self.knowledge_index = _faiss_read_index(index_path)
                 print(f"[OK] Loaded knowledge index: {self.knowledge_index.ntotal} vectors")
+                app_logger.info("knowledge index loaded vector_count=%s", self.knowledge_index.ntotal)
                 
                 # 重建 child_mappings（因为索引向量顺序可能与保存时不同）
                 self._rebuild_child_mappings()
                 
             except Exception as e:
                 print(f"[ERROR] Failed to load knowledge index: {e}")
+                app_logger.exception("failed to load knowledge index")
                 self.knowledge_index = faiss.IndexFlatIP(self.dim)
         elif self.encoder:
             print(f"[Knowledge] Creating new empty index")
