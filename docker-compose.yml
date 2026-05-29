@@ -1,16 +1,15 @@
 services:
-  arpm-v4:
+  arpm:
     build: .
-    container_name: arpm-v4
+    container_name: arpm-v4-1
     ports:
       - "5000:5000"
     environment:
       PORT: "5000"
-      DEBUG: "False"
-      SECRET_KEY: "${SECRET_KEY:-change-me}"
+      DEBUG: "false"
       ARPM_RUNTIME_DIR: /app/runtime/arpm-app
       ARPM_MODEL_ROOT: /app/assets/models
     volumes:
       - ./runtime:/app/runtime
-      - ./assets/models:/app/assets/models:ro
+      - ./assets:/app/assets
     restart: unless-stopped

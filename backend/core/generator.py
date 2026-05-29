@@ -40,7 +40,8 @@ class Generator:
         regeneration_config: Optional[Dict] = None,
         history: Optional[List[Dict]] = None,
         tuning_config: Optional[Dict] = None,
-        protocol_config: Optional[Dict] = None
+        protocol_config: Optional[Dict] = None,
+        structured_state: Optional[Dict] = None
     ) -> Dict:
         """
         生成回复主入口
@@ -80,7 +81,8 @@ class Generator:
             system_prompt=system_prompt,
             user_name=user_name,
             user_persona=user_persona,
-            character_name=character_name
+            character_name=character_name,
+            structured_state=structured_state
         )
         
         # 首次调用LLM
@@ -90,12 +92,14 @@ class Generator:
                 "status": "error",
                 "reply": "调用LLM失败",
                 "analysis": "",
+                "state_update": "",
                 "regeneration_info": None,
                 "protocol_info": {"status": "llm_failed"}
             }
         
         # 解析响应
-        analysis, reply, confidence = self.parser.parse_analysis_response(response)
+        state_update, analysis, reply, confidence = self.parser.parse_state_analysis_response(response)
+        original_state_update = state_update
         original_analysis = analysis
         original_reply = reply
         original_raw_output = response
@@ -116,7 +120,7 @@ class Generator:
             )
             if repaired:
                 was_repaired = True
-                analysis, reply, confidence = self.parser.parse_analysis_response(repaired)
+                state_update, analysis, reply, confidence = self.parser.parse_state_analysis_response(repaired)
                 protocol_info = self._evaluate_protocol_output(
                     raw_output=repaired,
                     analysis=analysis,
@@ -124,6 +128,7 @@ class Generator:
                     protocol_config=protocol_cfg
                 )
         protocol_info["was_repaired"] = was_repaired
+        protocol_info["original_state_update"] = original_state_update
         protocol_info["original_analysis"] = original_analysis
         protocol_info["original_reply"] = original_reply
         protocol_info["original_raw_output"] = original_raw_output
@@ -144,6 +149,7 @@ class Generator:
         if regen_cfg.get("enabled", True):
             result = self._validate_and_regenerate(
                 reply=reply,
+                state_update=state_update,
                 analysis=analysis,
                 prompt=prompt,
                 api_config=api_config,
@@ -155,6 +161,7 @@ class Generator:
             return {
                 "status": "success",
                 "reply": result["reply"],
+                "state_update": result.get("state_update", state_update),
                 "analysis": result["analysis"],
                 "regeneration_info": result.get("regeneration_info"),
                 "protocol_info": protocol_info
@@ -164,6 +171,7 @@ class Generator:
         return {
             "status": "success",
             "reply": reply,
+            "state_update": state_update,
             "analysis": analysis,
             "regeneration_info": {
                 "enabled": False,
@@ -207,6 +215,7 @@ class Generator:
         protocol_config: Dict
     ) -> Dict:
         raw_lower = (raw_output or "").lower()
+        has_state_update_tag = "<state_update>" in raw_lower and "</state_update>" in raw_lower
         has_analysis_tag = "<analysis>" in raw_lower and "</analysis>" in raw_lower
         has_response_tag = "<response>" in raw_lower and "</response>" in raw_lower
         visible_reply = bool(reply and reply.strip())
@@ -216,11 +225,13 @@ class Generator:
             protocol_config.get("auto_repair_response", True)
             and (
                 not has_response_tag
+                or not has_state_update_tag
                 or not visible_reply
                 or looks_thinking_only
             )
         )
         return {
+            "has_state_update_tag": has_state_update_tag,
             "has_analysis_tag": has_analysis_tag,
             "has_response_tag": has_response_tag,
             "visible_reply": visible_reply,
@@ -240,11 +251,14 @@ class Generator:
 
 要求：
 1. 最终必须输出且只输出：
+<state_update>...</state_update>
 <analysis>...</analysis>
 <response>...</response>
-2. 如果原文没有可用 analysis，就用一句话写“协议修复：原输出缺少显式分析”。
-3. 如果原文只有思考没有回答，请尽量从原文中提炼最终回答；若无法提炼，则在 <response> 中写“抱歉，上一条输出未形成可见回复，请重新生成。”
-4. 不要输出 think / thinking 标签。
+2. `<state_update>` 必须是 JSON，只判断当前用户消息是否包含关系状态变更；无法判断时输出 {{"has_state_change": false, "update_action": "ignore"}}。
+3. `<analysis>` 必须是一句 50 字以内的角色行动指导，只描述角色自身下一步表达方向、情绪姿态或行动倾向，不涉及用户。
+4. 如果原文没有可用 analysis，请根据原文可见回复补写一句角色行动指导；如果无法判断，就写“保持角色设定，给出简短自然回应”。
+5. 如果原文只有思考没有回答，请尽量从原文中提炼最终回答；若无法提炼，则在 <response> 中写“抱歉，上一条输出未形成可见回复，请重新生成。”
+6. 不要输出 think / thinking 标签。
 
 原始输出如下：
 {raw_output}
@@ -254,6 +268,7 @@ class Generator:
     def _validate_and_regenerate(
         self,
         reply: str,
+        state_update: str,
         analysis: str,
         prompt: str,
         api_config: Dict[str, str],
@@ -277,6 +292,7 @@ class Generator:
             enabled_layers.append("consistency")
         
         current_reply = reply
+        current_state_update = state_update
         current_analysis = analysis
         regeneration_history = []
         
@@ -294,6 +310,7 @@ class Generator:
                 # 验证通过
                 return {
                     "reply": current_reply,
+                    "state_update": current_state_update,
                     "analysis": current_analysis,
                     "regeneration_info": {
                         "enabled": True,
@@ -328,7 +345,7 @@ class Generator:
                 # 调用LLM重生成
                 response = self._call_llm(regen_prompt, api_config, tuning_config=tuning_config)
                 if response:
-                    current_analysis, current_reply, _ = self.parser.parse_analysis_response(response)
+                    current_state_update, current_analysis, current_reply, _ = self.parser.parse_state_analysis_response(response)
                 else:
                     # 重生成失败，使用原回复
                     break
@@ -338,6 +355,7 @@ class Generator:
         
         return {
             "reply": current_reply,
+            "state_update": current_state_update,
             "analysis": current_analysis,
             "regeneration_info": {
                 "enabled": True,
@@ -464,7 +482,8 @@ class Generator:
         system_prompt: str = "",
         user_name: str = "",
         user_persona: str = "",
-        character_name: str = ""
+        character_name: str = "",
+        structured_state: Optional[Dict] = None
     ) -> str:
         """构建完整Prompt - 强化角色扮演模式"""
         
@@ -503,48 +522,125 @@ class Generator:
         else:
             role_definition = f"【角色设定】\n你是 {final_character_name}，{character_desc}。"
         
-        prompt = f"""{user_profile}
-{role_definition}
+        character_background = f"{user_profile}\n{role_definition}"
+        state_context = self._format_structured_state(structured_state)
+        has_rag_context = bool((rag_context.get("knowledge") or []) or (rag_context.get("chat_history") or []))
 
-【情境记忆】（过往{final_user_name}和{final_character_name}的对话片段，供分析参考）
+        if has_rag_context:
+            prompt = f"""{character_background}
+
+【当前结构化状态】（状态机字段，不属于RAG，不参与向量化召回）
+{state_context}
+
+【情境记忆】（过往对话片段，供分析参考）：
 {context_str}
 
-【时空锚点】
-当前物理时间: {current_time} | 当前轮次: 第{current_round}轮
+【当前用户消息】
+用户说：“{user_input}”
 
-【当前输入】
-{final_user_name}说："{user_input}"
+【状态判定任务】
+请只根据【当前结构化状态】和【当前用户消息】判断是否出现关系状态变更，输出 `<state_update>...</state_update>`。
+`<state_update>` 内必须是 JSON，字段包括：
+- has_state_change: true/false
+- state_type: "relationship" 或 "none"
+- target: 关系对象，如“用户与女朋友”；不明确则为空字符串
+- event_type: breakup/reconcile/new_relationship/married/divorced/conflict/none
+- new_status: 新关系状态；无变更则为空字符串
+- temporal_scope: current/past/future_intent/hypothetical/uncertain
+- explicitness: explicit/implicit/uncertain
+- evidence: 当前用户消息中的短证据；没有则为空字符串
+- confidence: 0到1之间的小数
+- update_action: update/pending_confirm/ignore
+不要输出 previous_status；旧状态由系统从【当前结构化状态】自动填入。
+只有用户明确表达当前关系身份已经变化时才写 update；“想分手、可能分开、如果分手”只能 pending_confirm 或 ignore。
+`conflict` 只表示关系压力，默认不得写 update；若用户明确因冲突导致分手/离婚，应输出 breakup/divorced，而不是 conflict。
+旧RAG记忆不得覆盖当前结构化状态。
 
 【分析任务】
-用一句话（50字内）快速概括：根据情境记忆，当前对话采用哪些人物特质和历史信息？如没有历史信息支持当前回复则表明"无历史支撑"。
-请将分析过程写在 `<analysis>` 标签内。
+你是一个角色行动分析器，需要根据角色设定、历史上下文和召回内容，分析出 {final_character_name} 下一步最合适的行动指导。
+该指导不会涉及用户，只描述角色自身应采取的表达方向、情绪姿态或行动倾向。
+请只写一句 50 字以内的指导，放入 `<analysis>...</analysis>`。
+不要展开推理过程，不要替用户说话，不要把历史信息当成当前用户发言。
 
 【生成任务】
-基于你的分析，**以 {final_character_name} 的身份** 回应{final_user_name}的最后一句话。回复必须贴合你分析出的角色模式，体现角色的内在一致性，并自然地融入对话历史。
+你是一个角色扮演者，需要依据 `<analysis>` 中的行动指导，并结合【当前用户消息】，**以 {final_character_name} 的身份**进行一次角色口吻的内容输出。
+最终回复必须贴合角色设定、历史上下文和当前用户话语，但不得暴露分析任务或行动指导本身。
+`<response>` 中请遵守表达格式：中文引号“”内为角色说话内容；圆括号（）内为动作、神态、心理或其他非对白描述。
 
 ⚠️ **重要格式要求**：
 - 你的分析过程必须放在 `<analysis>...</analysis>` 标签内。
+- 关系状态判定必须放在 `<state_update>...</state_update>` 标签内。
 - 最终的角色回复必须放在 `<response>...</response>` 标签内。
-- **两个标签都必须存在，缺少 `<response>` 标签将导致系统无法正确提取回复，请务必遵守。**
+- **三个标签都必须存在，缺少 `<response>` 标签将导致系统无法正确提取回复，请务必遵守。**
 
 【关键约束】
-- **严格区分：【当前输入】是用户现在说的话，【情境记忆】是过去的历史记录，两者不要混淆。**
-- 只回答【当前输入】中的问题，不要继续【情境记忆】中的旧话题。
-- 如果用户询问关于用户自身的信息（如"我抽烟吗"），而相关信息来自历史记录，请使用条件性语言（如"根据之前的对话，你曾……""如果我没记错，你……"），并提醒用户这些信息可能过时或不准确。
+- 如果用户询问关于用户自身的信息（如“我抽烟吗”），而相关信息来自历史记录，请使用条件性语言（如“根据之前的对话，你曾……”“如果我没记错，你……”），并提醒用户这些信息可能过时或不准确。
 - **绝对不要将历史信息中的内容当作用户当前发言的一部分**。
 - 如果用户输入不完整，请主动询问澄清，而不是猜测并自动补全。
 - 不要替用户说话，不要主动推进剧情。
-- **情境记忆中的 AI 回复是历史记录，请勿直接复制或模仿其中的具体措辞，请重新组织语言生成原创回复。**
 """
-        prompt += """
+        else:
+            prompt = f"""{character_background}
 
-【补充澄清策略】
-- 如果模糊点在于“他/她/这个/那个/这件事”等指代不明，优先结合【情境记忆】和当前输入，给出 1-3 个最可能的具体所指或理解选项，再让用户确认。
-- 澄清时要尽量具体、贴着当前话题，不要只笼统地说“你的问题有些模糊”或泛泛要求“提供更多背景信息”。
-- 如果上下文里已经有高概率候选，就直接把候选说出来，例如“你是指 A，还是指 B？”而不是让用户从零重新解释。
+【当前结构化状态】（状态机字段，不属于RAG，不参与向量化召回）
+{state_context}
+
+【当前用户消息】
+用户说：“{user_input}”
+
+【状态判定任务】
+请只根据【当前结构化状态】和【当前用户消息】判断是否出现关系状态变更，输出 `<state_update>...</state_update>`。
+`<state_update>` 内必须是 JSON，字段包括 has_state_change、state_type、target、event_type、new_status、temporal_scope、explicitness、evidence、confidence、update_action。
+不要输出 previous_status；旧状态由系统从【当前结构化状态】自动填入。
+只有用户明确表达当前关系身份已经变化时才写 update；“想分手、可能分开、如果分手”只能 pending_confirm 或 ignore。
+`conflict` 只表示关系压力，默认不得写 update；若用户明确因冲突导致分手/离婚，应输出 breakup/divorced，而不是 conflict。
+
+【分析任务】
+你是一个角色行动分析器，需要根据角色设定分析出 {final_character_name} 下一步最合适的行动指导。
+该指导不会涉及用户，只描述角色自身应采取的表达方向、情绪姿态或行动倾向。
+请只写一句 50 字以内的指导，放入 `<analysis>...</analysis>`。
+不要展开推理过程，不要替用户说话。
+
+【生成任务】
+你是一个角色扮演者，需要依据 `<analysis>` 中的行动指导，并结合【当前用户消息】，**以 {final_character_name} 的身份**进行一次角色口吻的内容输出。
+最终回复必须贴合角色设定和当前用户话语，但不得暴露分析任务或行动指导本身。
+`<response>` 中请遵守表达格式：中文引号“”内为角色说话内容；圆括号（）内为动作、神态、心理或其他非对白描述。
+
+⚠️ **重要格式要求**：
+- 关系状态判定放在 `<state_update>...</state_update>` 内。
+- 分析过程放在 `<analysis>...</analysis>` 内。
+- 最终回复必须放在 `<response>...</response>` 内。
+- **缺少 `<response>` 标签将导致系统无法正确提取回复，请务必遵守。**
+
+【约束】
+- 不要替用户说话，不要主动推进剧情。
 """
-        prompt += f'\n\n【最近期内容（最终锚点）】current_round={current_round}|physical_time={current_time}|{final_user_name}说:"{user_input}"'
         return prompt
+
+    def _format_structured_state(self, structured_state: Optional[Dict]) -> str:
+        """Format non-RAG state fields that are injected directly into the prompt."""
+        state = structured_state or {}
+        relationship = state.get("relationship") or {}
+        if not relationship:
+            return "暂无明确关系状态。"
+
+        target = relationship.get("target") or "未指定对象"
+        status = relationship.get("status") or relationship.get("new_status") or "未知"
+        changed_round = relationship.get("changed_at_round", "-")
+        changed_time = relationship.get("changed_at_time", "-")
+        evidence = relationship.get("evidence") or ""
+        confidence = relationship.get("confidence", "")
+
+        lines = [
+            f"关系状态：{target} = {status}",
+            f"更新时间：第 {changed_round} 轮，{changed_time}",
+        ]
+        if evidence:
+            lines.append(f"依据：{evidence}")
+        if confidence != "":
+            lines.append(f"置信度：{confidence}")
+        lines.append("注意：这是当前状态；旧历史记忆只能作为过去事实，不得覆盖该状态。")
+        return "\n".join(lines)
     
     def _context_chronological_key(self, chunk: Dict) -> tuple:
         timestamp = chunk.get("timestamp") or {}

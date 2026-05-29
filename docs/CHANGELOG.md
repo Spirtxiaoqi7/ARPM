@@ -2,6 +2,31 @@
 
 所有项目的显著变更都将记录在此文件中。
 
+## [4.1.0] - 2026-05-30
+
+### 新增
+
+- **三段式生成协议**：主聊天后端现在要求模型输出 `<state_update>`、`<analysis>`、`<response>` 三个通道。
+- **Relationship State Tracking (RST)**：新增关系状态记忆层，用于记录“分手、复合、新关系、结婚、离婚”等关系身份状态变更。
+- **Persistent RST 注入**：通过状态机确认后的关系状态会在下一轮固定注入 prompt，不再依赖普通 RAG 召回命中。
+- **三段式协议文档**：新增 `docs/THREE_STAGE_STATE_PROTOCOL.md`，说明输入、输出字段、入库边界、下一轮 prompt 注入规则和 persistent RST 升级条件。
+- **LOCOMO 实验控制台**：保留 LOCOMO 评测工具链，用于长程记忆 QA、跨模型测试、断点续跑、CSV 自动导出和白盒分析。
+
+### 变更
+
+- **analysis 语义调整**：`<analysis>` 从“解释推理过程”调整为 50 字以内的角色行动指导，只服务本轮 `<response>` 生成。
+- **response 格式规范**：`<response>` 中中文引号“”表示角色说话内容，圆括号（）表示动作、神态、心理或其他非对白描述。
+- **状态与记忆隔离**：`<state_update>`、persistent RST、`<analysis>` 不写入 RAG 向量库；只有用户输入与可见 `<response>` 组成角色可见对话记忆。
+- **关系状态升级守卫**：persistent RST 仅在 `current + explicit + confidence >= 0.85 + event_type != conflict` 时更新。
+- **冲突事件处理**：`conflict` 被视为关系压力，默认不升级 persistent RST；明确分手/离婚时应归类为 `breakup` 或 `divorced`。
+- **LOCOMO 与主前端隔离**：主 ARPM runtime 不再混入 LOCOMO 会话索引和测试会话日志。
+
+### 修复
+
+- 修复协议修复时用“协议修复：原输出缺少显式分析”污染 analysis 字段的问题。
+- 修复 `<state_update>` 未进入协议诊断显示的问题。
+- 修正知识库清理与 LOCOMO 运行数据隔离流程，避免主前端误召回 LOCOMO 测评内容。
+
 ## [3.0.0] - 2025-01-05
 
 ### 新增

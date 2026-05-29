@@ -1,216 +1,214 @@
-# ARPM v4.0
+# ARPM v4.1 - Analysis-Based Role-Playing with Memory
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white" alt="Python" />
-  <img src="https://img.shields.io/badge/Flask-000000?style=flat&logo=flask&logoColor=white" alt="Flask" />
-  <img src="https://img.shields.io/badge/FAISS-Vector_Search-4B8BBE?style=flat" alt="FAISS" />
-  <img src="https://img.shields.io/badge/BM25%2B-Hybrid_Retrieval-5A5A5A?style=flat" alt="BM25+" />
-  <img src="https://img.shields.io/badge/OpenAI-Compatible_API-412991?style=flat&logo=openai&logoColor=white" alt="OpenAI-compatible API" />
-  <img src="https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white" alt="Docker" />
-  <img src="https://img.shields.io/badge/arXiv-2605.14802-B31B1B?style=flat&logo=arxiv&logoColor=white" alt="arXiv 2605.14802" />
-  <img src="https://img.shields.io/badge/License-MIT-green?style=flat" alt="MIT License" />
-</p>
+ARPM v4 是新一代角色一致性对话系统，采用双时态记忆架构和实时原子化存储。
 
-ARPM, short for **Analysis-Based Role-Playing with Memory**, is an open-source long-term memory and retrieval framework for role-playing dialogue, persona consistency research, and local knowledge-base interaction.
+## V4.1 更新
 
-ARPM v4.0 focuses on **heterogeneous temporal memory governance**: it separates knowledge-base memory from dialogue-history memory, combines vector retrieval with BM25+ keyword ranking, applies temporal weighting, and injects recalled memory in chronological order for long multi-turn dialogue.
+- **三段式生成协议**：新增 `<state_update>`、`<analysis>`、`<response>` 三段式输出。
+- **关系状态记忆 RST**：显式关系变更可升级为 persistent Relationship State，下一轮固定注入 prompt，不依赖 RAG 命中。
+- **状态/RAG 隔离**：`state_update`、persistent RST、`analysis` 绝不写入向量库；只有用户输入与可见 `<response>` 写入对话记忆。
+- **保守状态机守卫**：仅当关系变更为当前、显式、高置信度且非 `conflict` 时升级 persistent RST。
+- **角色行动指导**：`analysis` 改为 50 字内行动指导，仅服务本轮回复生成，不进入下一轮 prompt。
+- **回复格式规范**：`<response>` 中中文引号“”表示说话内容，圆括号（）表示动作、神态、心理或其他非对白描述。
+- **LOCOMO 隔离**：LOCOMO 测评代码与主 ARPM 运行时数据分离，避免基准数据污染主前端知识库。
 
-中文简介：ARPM 是一个面向长期角色一致性、记忆增强对话和可复现实验的开源系统。它支持本地 Web 对话、OpenAI 兼容 API、FAISS 向量检索、BM25+ 关键词检索、父子块召回、双时态权重和研究日志输出。
+## 🚀 核心特性
 
-## Keywords
+### 双时态记忆系统
+- **轮次时态**: 基于对话轮次的指数衰减
+- **物理时态**: 基于真实时间的权重计算
+- **双索引结构**: 知识库索引 + 对话历史索引分离存储
 
-`LLM memory`, `persona consistency`, `role-playing dialogue`, `RAG`, `retrieval-augmented generation`, `BM25+`, `FAISS`, `temporal memory`, `long-term dialogue`, `Chinese NLP`, `OpenAI-compatible API`, `Flask`, `AI companion`, `knowledge base chatbot`
+### 实时原子写入
+- 每轮对话立即向量化存储
+- 无需等待10K字符阈值
+- 对话历史参与RAG检索（Top-10）
 
-中文关键词：长期记忆、角色一致性、角色扮演对话、检索增强生成、外部记忆治理、时间衰减、父子块召回、知识库聊天、中文大模型应用。
+### 模糊问题拆解
+- LLM自动判断问题清晰度
+- 召回不匹配时自动拆解为子问题
+- 多路检索结果智能合并
 
-## Paper
+### 双源召回
+- **知识库**: 父子块结构，BM25+向量融合，召回5块
+- **对话历史**: 原子块结构，纯向量检索，召回10块
 
-The corresponding preprint is available on arXiv:
+## 📁 项目结构
 
-- **A Heterogeneous Temporal Memory Governance Framework for Long-Term LLM Persona Consistency**
-- arXiv: [2605.14802](https://arxiv.org/abs/2605.14802)
-
-If you use ARPM in academic work, please cite the paper with the citation metadata in [CITATION.cff](CITATION.cff) or the BibTeX entry in the [Citation](#citation) section.
-
-## What ARPM Does
-
-- Maintains separate retrieval paths for global knowledge-base memory and per-session dialogue history.
-- Combines FAISS vector search, BM25+ keyword ranking, and Reciprocal Rank Fusion.
-- Applies temporal weighting to model recency, long-term anchors, and dialogue continuity.
-- Injects recalled memory chronologically so later recalled content appears closer to the final instruction.
-- Provides a lightweight Flask web interface for free dialogue, role-playing, API configuration, knowledge upload, and diagnostics.
-- Keeps research logs, recall logs, dialogue logs, and implementation notes for reproducible inspection.
-
-## Use Cases
-
-- Long-term role-playing dialogue and AI companion prototypes.
-- Persona consistency experiments across long multi-turn conversations.
-- Memory-augmented RAG systems for Chinese and mixed Chinese-English knowledge bases.
-- Course projects, thesis experiments, and reproducible LLM application research.
-- Local knowledge-base chat with OpenAI-compatible model providers.
-
-## Quick Start
-
-### Windows
-
-```powershell
-python -m venv .venv
-.venv\Scripts\python -m pip install -r requirements.txt
-start.bat
+```
+ARPM-v4/
+├── backend/
+│   ├── app.py                 # Flask主入口
+│   ├── config.py              # 配置中心
+│   ├── requirements.txt       # 依赖列表
+│   ├── api/
+│   │   ├── chat.py            # 对话接口（含模糊拆解）
+│   │   ├── knowledge.py       # 知识库管理
+│   │   ├── session.py         # 会话管理
+│   │   └── diagnose.py        # 诊断接口
+│   ├── core/
+│   │   ├── retriever.py       # 双源检索器
+│   │   ├── memory_manager.py  # 双时态权重
+│   │   ├── generator.py       # 生成器（含规则验证）
+│   │   └── diagnostician.py   # 系统诊断
+│   ├── storage/
+│   │   ├── vector_store.py    # 双索引存储
+│   │   ├── memory_store.py    # 会话存储
+│   │   └── schema.py          # 数据模型
+│   ├── utils/
+│   │   ├── chunker.py         # 分块器
+│   │   ├── bm25_plus.py       # BM25+实现
+│   │   ├── time_utils.py      # 双时态工具
+│   │   └── text_utils.py      # 文本工具
+│   └── web/
+│       ├── static/css/style.css
+│       └── templates/index.html
+├── scripts/
+│   └── migrate_v3_to_v4.py    # v3数据迁移
+├── start.bat                    # Windows启动脚本
+└── README_V4.md
 ```
 
-### Linux or macOS
+## 🛠️ 快速开始
 
+### 1. 数据迁移（如有v3数据）
 ```bash
-python -m venv .venv
-. .venv/bin/activate
+python scripts/migrate_v3_to_v4.py
+```
+
+### 2. 安装依赖
+```bash
+cd backend
 pip install -r requirements.txt
-sh start.sh
 ```
 
-Open the web interface:
+### 3. 启动服务
+```bash
+# Windows
+start.bat
 
-```text
-http://127.0.0.1:5000
+# 或手动
+cd backend
+python app.py
 ```
 
-## Docker
+### 4. 访问
+打开浏览器访问: http://localhost:5000
+
+## ⚙️ 配置说明
+
+在设置面板中配置：
+- **API密钥**: 支持 DeepSeek/OpenAI 兼容接口
+- **系统提示词**: 定义AI角色行为
+- **消融测试开关**:
+  - ARPM检索总开关
+  - BM25+混合检索
+  - 模糊问题拆解
+
+## 🗃️ 数据存储
+
+### 双索引结构
+```
+data/vector_db/
+├── knowledge/           # 知识库索引
+│   ├── metadata.json    # 父块元数据（含chunk_id, timestamp, children）
+│   └── faiss.index      # FAISS向量索引
+└── chat/                # 对话历史索引
+    ├── metadata.json    # 原子块元数据
+    └── faiss.index      # FAISS向量索引
+
+data/memory_db/
+└── session_{id}.json    # 会话数据（消息+结构化记忆）
+```
+
+### 时间戳格式
+```json
+{
+  "round_num": 5,
+  "physical_time": "2026-04-07T22:31:00"
+}
+```
+
+## 🔍 检索流程
+
+```
+用户输入
+    ↓
+[知识库检索] ──向量+BM25+RRF──→ 5个父块
+[对话检索] ──────向量────────→ 10个原子块
+    ↓
+时态权重计算 (轮次+物理时间+场景)
+    ↓
+合并15块上下文
+    ↓
+LLM分析（判断清晰度）
+    ↓
+模糊? → 拆解子问题 → 重新检索 → 合并
+清晰? → 直接生成
+    ↓
+规则验证 → 保存回复
+    ↓
+实时原子化写入向量库
+```
+
+## 🧪 与v3的主要差异
+
+| 特性 | v3 | v4 |
+|------|-----|-----|
+| 时间模型 | 单一时态（轮次） | 双时态（轮次+物理） |
+| 写入策略 | 10K阈值批量写入 | 实时原子写入 |
+| 存储结构 | 单索引 | 双索引（知识+对话分离） |
+| 召回来源 | 仅知识库 | 知识库+对话历史 |
+| 模糊处理 | 无 | 自动拆解子问题 |
+| 手动加权 | 关键词/怀旧/锁定 | **已移除** |
+| 场景结构 | 嵌套支持 | 扁平结构 |
+
+## 📝 API 端点
+
+- `POST /api/chat` - 对话（含模糊拆解）
+- `POST /api/test` - 测试API连接
+- `GET /api/knowledge` - 获取知识库
+- `POST /api/knowledge` - 上传文件
+- `DELETE /api/knowledge?index=x` - 删除片段
+- `GET /api/sessions` - 会话列表
+- `GET /api/history/{id}` - 会话历史
+- `POST /api/diagnostics` - 系统诊断
+
+## 🐛 故障排除
+
+### FAISS索引损坏
+```bash
+# 自动修复
+POST /api/diagnostics {"auto_fix": true}
+```
+
+### 模型加载失败
+确保 models/shibing624/text2vec-base-chinese/ 存在
+
+### 数据不兼容
+运行迁移脚本：python scripts/migrate_v3_to_v4.py
+
+## 📄 许可证
+
+MIT License
+
+## Docker 部署
+
+本仓库包体不包含虚拟环境、运行时向量库、实验日志和模型本体。容器默认读取：
+
+- 运行数据：`./runtime:/app/runtime`
+- 本地模型：`./assets:/app/assets`
+
+启动方式：
 
 ```bash
 docker compose up --build
 ```
 
-The compose file maps local runtime and model directories into the container:
+启动后访问：
 
 ```text
-./runtime         -> /app/runtime
-./assets/models   -> /app/assets/models
+http://localhost:5000
 ```
 
-## Model Download
-
-Vector retrieval uses the sentence embedding model:
-
-```text
-shibing624/text2vec-base-chinese
-```
-
-Model weights are not included in this repository. The default local path is:
-
-```text
-assets/models/shibing624/text2vec-base-chinese
-```
-
-Download with Git LFS:
-
-```bash
-git lfs install
-mkdir -p assets/models/shibing624
-git clone https://huggingface.co/shibing624/text2vec-base-chinese assets/models/shibing624/text2vec-base-chinese
-```
-
-Or download with Hugging Face CLI:
-
-```bash
-pip install -U huggingface_hub
-huggingface-cli download shibing624/text2vec-base-chinese --local-dir assets/models/shibing624/text2vec-base-chinese
-```
-
-If Hugging Face is slow in your network, set a mirror endpoint before download:
-
-```bash
-export HF_ENDPOINT=https://hf-mirror.com
-```
-
-Windows PowerShell:
-
-```powershell
-$env:HF_ENDPOINT = "https://hf-mirror.com"
-```
-
-You can also keep the model outside the repository and point ARPM to it:
-
-```bash
-export ARPM_MODEL_ROOT=/path/to/models
-```
-
-Windows PowerShell:
-
-```powershell
-$env:ARPM_MODEL_ROOT = "D:\models"
-```
-
-## Project Layout
-
-```text
-backend/app.py                       Flask entry point
-backend/api                          HTTP API endpoints
-backend/core/retriever.py            Vector, BM25+, and RRF retrieval flow
-backend/core/generator.py            Prompt construction and response generation
-backend/storage/vector_store.py      FAISS vector storage
-backend/storage/memory_store.py      Dialogue memory storage
-backend/utils/bm25_plus.py           BM25+ scorer
-backend/web/templates/index.html     Frontend template
-backend/web/static                   Frontend CSS and JavaScript
-config                               Character and system configuration
-docs                                 Research and implementation notes
-scripts                              Utility scripts
-tests                                Test files
-```
-
-## Documentation Map
-
-- [Project Overview](docs/PROJECT_OVERVIEW.md): encyclopedia-style overview for readers, search engines, and wiki pages.
-- [Wiki Home Draft](docs/WIKI_HOME.md): copy-ready GitHub Wiki homepage draft.
-- [User Guide](docs/USER_GUIDE.md): local setup, configuration, dialogue flow, and troubleshooting.
-- [Current Architecture](docs/CURRENT_ARCHITECTURE.md): current code path and implementation boundaries.
-- [Formula and Numerical Notes](docs/ARPM公式与数值说明.md): retrieval, temporal weighting, and experiment-facing formulas.
-- [Feature Summary](docs/FEATURES_SUMMARY.md): feature list and implementation summary.
-- [Changelog](docs/CHANGELOG.md): release notes.
-- [Contributing](CONTRIBUTING.md): issue, pull request, and research contribution notes.
-- [Security](SECURITY.md): vulnerability reporting and sensitive-data guidance.
-
-## Repository Discovery
-
-Recommended GitHub topics:
-
-```text
-llm, rag, memory, persona-consistency, role-playing, chatbot, faiss,
-bm25, temporal-memory, chinese-nlp, flask, openai-compatible
-```
-
-Suggested short description:
-
-```text
-Long-term memory RAG framework for role-playing dialogue and LLM persona consistency research.
-```
-
-Suggested website field:
-
-```text
-https://arxiv.org/abs/2605.14802
-```
-
-## Citation
-
-```bibtex
-@misc{zhao2026arpm,
-  title         = {A Heterogeneous Temporal Memory Governance Framework for Long-Term LLM Persona Consistency},
-  author        = {Zhao, Yang and Wang, Huan and Li, Yingshuo and Tu, Haomiao and Lin, Hujite},
-  year          = {2026},
-  eprint        = {2605.14802},
-  archivePrefix = {arXiv},
-  primaryClass  = {cs.AI},
-  url           = {https://arxiv.org/abs/2605.14802}
-}
-```
-
-## Contributing
-
-Issues, documentation improvements, reproducibility reports, and pull requests are welcome. Please see [CONTRIBUTING.md](CONTRIBUTING.md) before opening a larger change.
-
-Do not commit API keys, private chat logs, local runtime databases, uploaded knowledge bases, or embedding model weights. Use [.env.example](.env.example) as a local configuration reference.
-
-## License
-
-ARPM is released under the [MIT License](LICENSE).
+如需使用本地向量模型，请按文档下载到 `assets/models/`，或通过环境变量 `ARPM_MODEL_ROOT` 指向已有模型父目录。

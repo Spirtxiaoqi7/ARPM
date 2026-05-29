@@ -5,6 +5,8 @@ Chat API routes.
 - Knowledge base is shared globally.
 """
 import uuid
+import json
+import re
 from datetime import datetime
 from flask import Blueprint, request, jsonify, current_app
 
@@ -22,6 +24,83 @@ chat_bp = Blueprint('chat', __name__)
 # Session-scoped generation state used by cancellation.
 # Structure: {session_id: {'cancelled': bool, 'timestamp': datetime}}
 generation_states = {}
+
+
+def _parse_state_update(raw: str) -> dict:
+    """Parse the model-emitted state_update JSON conservatively."""
+    if not raw or not raw.strip():
+        return {}
+    text = raw.strip()
+    try:
+        parsed = json.loads(text)
+        return parsed if isinstance(parsed, dict) else {}
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if not match:
+            return {}
+        try:
+            parsed = json.loads(match.group(0))
+            return parsed if isinstance(parsed, dict) else {}
+        except json.JSONDecodeError:
+            return {}
+
+
+def _apply_relationship_state_update(session_data: dict, raw_state_update: str, current_round: int, physical_time: str) -> dict:
+    """Write relationship state to session storage only; never to vector/RAG memory."""
+    parsed = _parse_state_update(raw_state_update)
+    state_log = {
+        "round": current_round,
+        "timestamp": physical_time,
+        "raw": raw_state_update or "",
+        "parsed": parsed,
+        "applied": False,
+        "reason": "not_applicable",
+    }
+
+    session_data.setdefault("structured_state", {})
+    session_data.setdefault("state_update_log", [])
+    session_data["state_update_log"].append(state_log)
+
+    if not parsed:
+        state_log["reason"] = "empty_or_invalid_json"
+        return state_log
+
+    try:
+        confidence = float(parsed.get("confidence", 0) or 0)
+    except (TypeError, ValueError):
+        confidence = 0.0
+
+    should_update = (
+        parsed.get("has_state_change") is True
+        and parsed.get("state_type") == "relationship"
+        and parsed.get("update_action") == "update"
+        and parsed.get("temporal_scope") == "current"
+        and parsed.get("explicitness") == "explicit"
+        and parsed.get("event_type") != "conflict"
+        and confidence >= 0.85
+        and bool(parsed.get("new_status"))
+    )
+
+    if not should_update:
+        state_log["reason"] = "guard_rejected"
+        return state_log
+
+    previous = session_data["structured_state"].get("relationship") or {}
+    session_data["structured_state"]["relationship"] = {
+        "target": parsed.get("target") or previous.get("target") or "用户关系",
+        "status": parsed.get("new_status"),
+        "previous_status": previous.get("status") or previous.get("new_status") or "",
+        "event_type": parsed.get("event_type") or "",
+        "changed_at_round": current_round,
+        "changed_at_time": physical_time,
+        "evidence": parsed.get("evidence") or "",
+        "confidence": confidence,
+        "source": "state_update",
+        "active": True,
+    }
+    state_log["applied"] = True
+    state_log["reason"] = "relationship_state_updated"
+    return state_log
 
 
 def _log_retrieval_details(label: str, chunks: list, limit: int = 5):
@@ -303,7 +382,8 @@ def handle_chat():
             regeneration_config=regen_config,
             history=history,
             tuning_config=tuning_config,
-            protocol_config=protocol_config
+            protocol_config=protocol_config,
+            structured_state=session_data.get('structured_state', {})
         )
         
         # 检查是否已取消。
@@ -332,6 +412,7 @@ def handle_chat():
             "round": current_round,
             "physical_time": physical_time,
             "model": _model_label(api_config),
+            "state_update": result.get('state_update', ''),
             "analysis": result.get('analysis', ''),
             "regeneration_info": result.get('regeneration_info'),
             "protocol_info": result.get('protocol_info'),
@@ -379,6 +460,13 @@ def handle_chat():
             'analysis': result.get('analysis', ''),
             'timestamp': physical_time
         })
+
+        state_update_log = _apply_relationship_state_update(
+            session_data=session_data,
+            raw_state_update=result.get('state_update', ''),
+            current_round=current_round,
+            physical_time=physical_time
+        )
         
         memory_store.save_session(session_id, session_data)
         
@@ -422,6 +510,9 @@ def handle_chat():
             'round': current_round,
             'status': result['status'],
             'reply': result['reply'],
+            'state_update': result.get('state_update', ''),
+            'structured_state': session_data.get('structured_state', {}),
+            'state_update_log': state_update_log,
             'analysis': result.get('analysis', ''),
             'config': session_config,  # 返回当前会话配置，确保前后端同步。
             'rag_context': {
@@ -556,7 +647,8 @@ def regenerate_message():
             regeneration_config=regen_config,
             history=history,
             tuning_config=tuning_config,
-            protocol_config=protocol_config
+            protocol_config=protocol_config,
+            structured_state=session_data.get('structured_state', {})
         )
         
         # 5. 将新的向量索引保存到对应 session。
@@ -581,6 +673,7 @@ def regenerate_message():
             "round": round_num,
             "physical_time": physical_time,
             "model": _model_label(api_config),
+            "state_update": result.get('state_update', ''),
             "analysis": result.get('analysis', ''),
             "regeneration_info": result.get('regeneration_info'),
             "protocol_info": result.get('protocol_info'),
@@ -612,12 +705,22 @@ def regenerate_message():
                 mem['analysis'] = result.get('analysis', '')
                 mem['timestamp'] = physical_time
                 break
+
+        state_update_log = _apply_relationship_state_update(
+            session_data=session_data,
+            raw_state_update=result.get('state_update', ''),
+            current_round=round_num,
+            physical_time=physical_time
+        )
         
         memory_store.save_session(session_id, session_data)
         
         return jsonify({
             'success': True,
             'reply': result['reply'],
+            'state_update': result.get('state_update', ''),
+            'structured_state': session_data.get('structured_state', {}),
+            'state_update_log': state_update_log,
             'analysis': result.get('analysis', ''),
             'config': session_config,  # 返回配置，确保同步。
             'deleted_chunks': len(deleted_chunks),

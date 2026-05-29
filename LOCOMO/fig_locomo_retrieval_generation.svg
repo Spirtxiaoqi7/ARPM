@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox="0 0 1100 620">
+  <rect width="1100" height="620" fill="#ffffff"/>
+  <text x="60" y="48" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#111827">LOCOMO: Retrieval-layer gains vs. answer-level F1</text>
+  <text x="60" y="78" font-family="Arial, sans-serif" font-size="14" fill="#4b5563">Scores are percentages. RRF + dual route improves memory evidence exposure; final F1 is constrained by generation and strict answer matching.</text>
+
+  <line x1="120" y1="520" x2="1040" y2="520" stroke="#111827" stroke-width="1"/>
+  <line x1="120" y1="130" x2="120" y2="520" stroke="#111827" stroke-width="1"/>
+
+  <g font-family="Arial, sans-serif" font-size="12" fill="#6b7280">
+    <text x="82" y="524">0</text>
+    <text x="75" y="459">20</text>
+    <text x="75" y="394">40</text>
+    <text x="75" y="329">60</text>
+    <text x="75" y="264">80</text>
+    <text x="68" y="199">100</text>
+  </g>
+  <g stroke="#e5e7eb" stroke-width="1">
+    <line x1="120" y1="455" x2="1040" y2="455"/>
+    <line x1="120" y1="390" x2="1040" y2="390"/>
+    <line x1="120" y1="325" x2="1040" y2="325"/>
+    <line x1="120" y1="260" x2="1040" y2="260"/>
+    <line x1="120" y1="195" x2="1040" y2="195"/>
+  </g>
+
+  <g font-family="Arial, sans-serif" font-size="13" fill="#111827">
+    <text x="180" y="545" text-anchor="middle">v3.2-chat</text>
+    <text x="180" y="563" text-anchor="middle">single</text>
+    <text x="390" y="545" text-anchor="middle">V4-flash</text>
+    <text x="390" y="563" text-anchor="middle">single</text>
+    <text x="600" y="545" text-anchor="middle">V4PRO</text>
+    <text x="600" y="563" text-anchor="middle">single</text>
+    <text x="810" y="545" text-anchor="middle">V4-flash</text>
+    <text x="810" y="563" text-anchor="middle">dual + RRF</text>
+  </g>
+
+  <!-- Scale: y = 520 - score*3.25 -->
+  <!-- v3.2-chat: R@5 22.23, R@10 43.42, MRR 14.04, F1 25.42 -->
+  <rect x="145" y="447.75" width="24" height="72.25" fill="#2563eb"/>
+  <rect x="173" y="378.89" width="24" height="141.11" fill="#14b8a6"/>
+  <rect x="201" y="474.37" width="24" height="45.63" fill="#f59e0b"/>
+  <rect x="229" y="437.38" width="24" height="82.62" fill="#ef4444"/>
+  <!-- flash single: R@5 22.11, R@10 44.29, MRR 14.00, F1 31.54 -->
+  <rect x="355" y="448.14" width="24" height="71.86" fill="#2563eb"/>
+  <rect x="383" y="376.06" width="24" height="143.94" fill="#14b8a6"/>
+  <rect x="411" y="474.50" width="24" height="45.50" fill="#f59e0b"/>
+  <rect x="439" y="417.00" width="24" height="103.00" fill="#ef4444"/>
+  <!-- PRO single: R@5 22.11, R@10 44.29, MRR 14.00, F1 35.87 -->
+  <rect x="565" y="448.14" width="24" height="71.86" fill="#2563eb"/>
+  <rect x="593" y="376.06" width="24" height="143.94" fill="#14b8a6"/>
+  <rect x="621" y="474.50" width="24" height="45.50" fill="#f59e0b"/>
+  <rect x="649" y="403.42" width="24" height="116.58" fill="#ef4444"/>
+  <!-- flash dual RRF: R@5 60.93, R@10 71.75, MRR 48.24, F1 31.93 -->
+  <rect x="775" y="322.98" width="24" height="197.02" fill="#2563eb"/>
+  <rect x="803" y="286.81" width="24" height="233.19" fill="#14b8a6"/>
+  <rect x="831" y="363.22" width="24" height="156.78" fill="#f59e0b"/>
+  <rect x="859" y="416.23" width="24" height="103.77" fill="#ef4444"/>
+
+  <g font-family="Arial, sans-serif" font-size="11" fill="#111827">
+    <text x="157" y="442" text-anchor="middle">22.23</text><text x="185" y="373" text-anchor="middle">43.42</text><text x="213" y="469" text-anchor="middle">14.04</text><text x="241" y="432" text-anchor="middle">25.42</text>
+    <text x="367" y="442" text-anchor="middle">22.11</text><text x="395" y="371" text-anchor="middle">44.29</text><text x="423" y="469" text-anchor="middle">14.00</text><text x="451" y="412" text-anchor="middle">31.54</text>
+    <text x="577" y="442" text-anchor="middle">22.11</text><text x="605" y="371" text-anchor="middle">44.29</text><text x="633" y="469" text-anchor="middle">14.00</text><text x="661" y="398" text-anchor="middle">35.87</text>
+    <text x="787" y="317" text-anchor="middle">60.93</text><text x="815" y="281" text-anchor="middle">71.75</text><text x="843" y="358" text-anchor="middle">48.24</text><text x="871" y="411" text-anchor="middle">31.93</text>
+  </g>
+
+  <g font-family="Arial, sans-serif" font-size="13" fill="#111827">
+    <rect x="150" y="95" width="14" height="14" fill="#2563eb"/><text x="170" y="107">Recall@5</text>
+    <rect x="260" y="95" width="14" height="14" fill="#14b8a6"/><text x="280" y="107">Recall@10</text>
+    <rect x="385" y="95" width="14" height="14" fill="#f59e0b"/><text x="405" y="107">MRR</text>
+    <rect x="465" y="95" width="14" height="14" fill="#ef4444"/><text x="485" y="107">F1</text>
+  </g>
+</svg>

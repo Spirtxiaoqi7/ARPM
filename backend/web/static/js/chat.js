@@ -1040,7 +1040,7 @@ function exportCurrentSession() {
     link.remove();
 }
 
-function renderAnalysis(analysis, protocolInfo = null) {
+function renderAnalysis(analysis, protocolInfo = null, stateUpdate = "", structuredState = null) {
     const displayAnalysis = protocolInfo?.original_analysis || analysis;
     const protocolBlock = protocolInfo ? `
         <div class="rag-item" style="margin-bottom:10px;">
@@ -1049,17 +1049,26 @@ function renderAnalysis(analysis, protocolInfo = null) {
                 <span class="rag-score">${protocolInfo.resolved_model_mode || "-"}</span>
             </div>
             <div class="rag-meta">
-                analysis_tag=${protocolInfo.has_analysis_tag} \u00b7 response_tag=${protocolInfo.has_response_tag}
+                state_update_tag=${protocolInfo.has_state_update_tag} \u00b7 analysis_tag=${protocolInfo.has_analysis_tag} \u00b7 response_tag=${protocolInfo.has_response_tag}
                 \u00b7 visible_reply=${protocolInfo.visible_reply} \u00b7 thinking_only=${protocolInfo.looks_thinking_only}
                 \u00b7 repaired=${protocolInfo.was_repaired ?? false} \u00b7 needs_repair=${protocolInfo.needs_repair}
             </div>
         </div>
     ` : "";
-    if (!displayAnalysis && !protocolBlock) {
+    const stateBlock = (stateUpdate || structuredState?.relationship) ? `
+        <div class="rag-item" style="margin-bottom:10px;">
+            <div class="rag-header">
+                <span class="rag-source">\u72b6\u6001\u673a / state_update</span>
+                <span class="rag-score">${structuredState?.relationship?.status || "\u672a\u66f4\u65b0"}</span>
+            </div>
+            <div class="rag-text">${Utils.formatText(stateUpdate || "\u672c\u8f6e\u65e0\u663e\u5f0f\u72b6\u6001\u5224\u5b9a")}</div>
+        </div>
+    ` : "";
+    if (!displayAnalysis && !protocolBlock && !stateBlock) {
         DOM.cotContent.innerHTML = '<div class="empty">\u5f53\u524d\u8f6e\u6ca1\u6709\u989d\u5916\u5206\u6790</div>';
         return;
     }
-    DOM.cotContent.innerHTML = `${protocolBlock}<div class="rag-item"><div class="rag-text">${Utils.formatText(displayAnalysis || "\u65e0\u663e\u5f0f\u5206\u6790\u5185\u5bb9")}</div></div>`;
+    DOM.cotContent.innerHTML = `${protocolBlock}${stateBlock}<div class="rag-item"><div class="rag-text">${Utils.formatText(displayAnalysis || "\u65e0\u663e\u5f0f\u5206\u6790\u5185\u5bb9")}</div></div>`;
 }
 
 async function refreshKnowledgeStats() {
@@ -1229,7 +1238,7 @@ async function sendMessage() {
         State.ablation.similarity_threshold = State.tuning.similarity_threshold;
         renderMessages();
         renderRagContext(result.rag_context);
-        renderAnalysis(result.analysis || "", result.protocol_info || null);
+        renderAnalysis(result.analysis || "", result.protocol_info || null, result.state_update || "", result.structured_state || null);
         await loadSessions();
         Utils.setStatus("\u5df2\u5b8c\u6210", "success");
     } catch (error) {
@@ -1278,7 +1287,7 @@ async function regenerateRound(round) {
             })
         });
         await loadHistory(State.sessionId);
-        renderAnalysis(result.analysis || "", result.protocol_info || null);
+        renderAnalysis(result.analysis || "", result.protocol_info || null, result.state_update || "", result.structured_state || null);
         Utils.setStatus(`\u7b2c ${round} \u8f6e\u5df2\u91cd\u65b0\u751f\u6210`, "success");
     } catch (error) {
         Utils.showToast(error.message, "error");

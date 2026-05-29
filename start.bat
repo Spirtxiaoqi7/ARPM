@@ -24,8 +24,8 @@ if not defined APP_ROOT (
     exit /b 1
 )
 
-set "WORKSPACE_ROOT=%APP_ROOT%"
-set "VENV_DIR=%WORKSPACE_ROOT%\.venv"
+for %%I in ("%APP_ROOT%\..\..") do set "WORKSPACE_ROOT=%%~fI"
+set "VENV_DIR=%WORKSPACE_ROOT%\env\arpm-venv"
 set "ARPM_RUNTIME_DIR=%WORKSPACE_ROOT%\runtime\arpm-app"
 set "ARPM_MODEL_ROOT=%WORKSPACE_ROOT%\assets\models"
 set "PYTHON_EXE=python"

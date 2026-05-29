@@ -1,0 +1,85 @@
+{
+  "benchmark": "locomo",
+  "data_path": "E:\\flai\\ARPM-v4备份\\code\\arpm-app\\benchmarks\\locomo\\data\\locomo10.json",
+  "qa_jsonl": "E:\\flai\\ARPM-v4备份\\code\\arpm-app\\benchmarks\\locomo\\data\\locomo_qa.jsonl",
+  "model_path": "E:\\flai\\ARPM-v4备份\\assets\\models\\shibing624\\text2vec-base-chinese",
+  "runtime_dir": "E:\\flai\\ARPM-v4备份\\runtime\\arpm-app",
+  "split": "one official dialogue turn per chat chunk; chunk_id keeps dia_id",
+  "sessions": [
+    {
+      "session_id": "locomo_conv-26",
+      "sample_id": "conv-26",
+      "chunks": 419,
+      "vectors": 419,
+      "qa": 199
+    },
+    {
+      "session_id": "locomo_conv-30",
+      "sample_id": "conv-30",
+      "chunks": 369,
+      "vectors": 369,
+      "qa": 105
+    },
+    {
+      "session_id": "locomo_conv-41",
+      "sample_id": "conv-41",
+      "chunks": 663,
+      "vectors": 663,
+      "qa": 193
+    },
+    {
+      "session_id": "locomo_conv-42",
+      "sample_id": "conv-42",
+      "chunks": 629,
+      "vectors": 629,
+      "qa": 260
+    },
+    {
+      "session_id": "locomo_conv-43",
+      "sample_id": "conv-43",
+      "chunks": 680,
+      "vectors": 680,
+      "qa": 242
+    },
+    {
+      "session_id": "locomo_conv-44",
+      "sample_id": "conv-44",
+      "chunks": 675,
+      "vectors": 675,
+      "qa": 158
+    },
+    {
+      "session_id": "locomo_conv-47",
+      "sample_id": "conv-47",
+      "chunks": 689,
+      "vectors": 689,
+      "qa": 190
+    },
+    {
+      "session_id": "locomo_conv-48",
+      "sample_id": "conv-48",
+      "chunks": 681,
+      "vectors": 681,
+      "qa": 239
+    },
+    {
+      "session_id": "locomo_conv-49",
+      "sample_id": "conv-49",
+      "chunks": 509,
+      "vectors": 509,
+      "qa": 196
+    },
+    {
+      "session_id": "locomo_conv-50",
+      "sample_id": "conv-50",
+      "chunks": 568,
+      "vectors": 568,
+      "qa": 204
+    }
+  ],
+  "total_sessions": 10,
+  "total_chunks": 5882,
+  "total_vectors": 5882,
+  "total_qa": 1986,
+  "imported_at": "2026-05-16T22:22:52.648852"
+}

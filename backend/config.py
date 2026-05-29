@@ -9,11 +9,10 @@ from pathlib import Path
 
 # 基础路径
 BASE_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = BASE_DIR.parent
-APP_DIR = PROJECT_ROOT
-WORKSPACE_DIR = PROJECT_ROOT
-RUNTIME_DIR = Path(os.environ.get("ARPM_RUNTIME_DIR", str(PROJECT_ROOT / "runtime" / "arpm-app")))
-MODEL_ROOT_DIR = Path(os.environ.get("ARPM_MODEL_ROOT", str(PROJECT_ROOT / "assets" / "models")))
+APP_DIR = BASE_DIR.parent
+WORKSPACE_DIR = APP_DIR.parent.parent
+RUNTIME_DIR = Path(os.environ.get("ARPM_RUNTIME_DIR", str(WORKSPACE_DIR / "runtime" / "arpm-app")))
+MODEL_ROOT_DIR = Path(os.environ.get("ARPM_MODEL_ROOT", str(WORKSPACE_DIR / "assets" / "models")))
 DATA_DIR = RUNTIME_DIR / "data"
 LOGS_DIR = RUNTIME_DIR / "logs"
 CONFIG_DIR = APP_DIR / "config"

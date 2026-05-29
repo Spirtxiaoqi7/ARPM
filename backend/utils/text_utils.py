@@ -31,7 +31,7 @@ class TextProcessor:
 
 
 class ARPMParser:
-    """Parse model output into analysis/response sections."""
+    """Parse model output into state_update/analysis/response sections."""
 
     THINKING_MODEL_KEYWORDS = (
         "reason",
@@ -55,17 +55,24 @@ class ARPMParser:
         """
         Return: (analysis, response, confidence)
         """
+        state_update, analysis, response, confidence = ARPMParser.parse_state_analysis_response(text)
+        return analysis, response, confidence
+
+    @staticmethod
+    def parse_state_analysis_response(text: str) -> Tuple[str, str, str, float]:
+        """
+        Return: (state_update, analysis, response, confidence)
+        """
         text = (text or "").strip()
+
+        state_match = re.search(r"<state_update>(.*?)</state_update>", text, re.DOTALL | re.IGNORECASE)
+        state_update = state_match.group(1).strip() if state_match else ""
 
         analysis_match = re.search(r"<analysis>(.*?)</analysis>", text, re.DOTALL | re.IGNORECASE)
         analysis = analysis_match.group(1).strip() if analysis_match else ""
 
         response_match = re.search(r"<response>(.*?)</response>", text, re.DOTALL | re.IGNORECASE)
         response = response_match.group(1).strip() if response_match else ""
-
-        # When there is an explicit response tag, show everything else in the CoT panel.
-        if response_match:
-            analysis = (text[: response_match.start()] + text[response_match.end() :]).strip()
 
         # Fallback: if there is analysis but no response tag, use the tail after analysis.
         if not response and analysis_match:
@@ -78,8 +85,12 @@ class ARPMParser:
         if not response and not analysis_match:
             response = text
 
-        # Remove any nested analysis block that leaked into the response.
+        # Remove hidden protocol blocks that leaked into the visible response.
+        response = re.sub(r"<state_update>.*?</state_update>", "", response, flags=re.DOTALL | re.IGNORECASE).strip()
         response = re.sub(r"<analysis>.*?</analysis>", "", response, flags=re.DOTALL | re.IGNORECASE).strip()
+        response = re.sub(r"</?response>", "", response, flags=re.IGNORECASE).strip()
+        analysis = re.sub(r"</?analysis>", "", analysis, flags=re.IGNORECASE).strip()
+        state_update = re.sub(r"</?state_update>", "", state_update, flags=re.IGNORECASE).strip()
         analysis = analysis.strip()
 
         confidence_match = re.search(r"置信度[:：]?\s*(\d+\.?\d*)", analysis, re.IGNORECASE)
@@ -90,7 +101,7 @@ class ARPMParser:
             if any(kw in analysis for kw in vague_keywords):
                 confidence = 0.4
 
-        return analysis, response, confidence
+        return state_update, analysis, response, confidence
 
     @staticmethod
     def extract_sub_queries(analysis: str) -> List[str]:

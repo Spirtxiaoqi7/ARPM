@@ -1,0 +1,17 @@
+﻿{
+    "version":  "4.1.0",
+    "created_at":  "2026-05-30T05:55:26",
+    "source":  "E:\\flai\\ARPM-v4备份\\code\\arpm-app",
+    "package":  "E:\\flai\\ARPM-v4备份\\release\\arpm-v4.1-github-package-20260530-055526",
+    "excluded":  [
+                     "runtime",
+                     "env",
+                     "assets",
+                     "release",
+                     "LOCOMO/log",
+                     "LOCOMO/results",
+                     "LOCOMO/qw",
+                     "archives/csv/xls"
+                 ],
+    "note":  "GitHub-ready source package; no model files, virtualenv, runtime vector DB, or experiment logs. Dockerfile, docker-compose.yml, and requirements-docker.txt are included for Linux container deployment."
+}

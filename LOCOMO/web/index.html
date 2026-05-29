@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LOCOMO QA 控制台</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>LOCOMO QA 控制台</h1>
+      <p>选择会话、调参、一键跑检索或 QA，直观看证据命中和答案指标。</p>
+    </div>
+    <div class="actions">
+      <button id="btn-refresh" class="ghost">刷新数据</button>
+      <a id="download-csv" class="ghost link" href="/api/export/csv">下载 CSV</a>
+      <button id="btn-clear" class="ghost">清空记录</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel settings">
+      <section>
+        <h2>运行模式</h2>
+        <label class="field">
+          <span>任务</span>
+          <select id="mode">
+            <option value="retrieval">只跑检索，不调用 API</option>
+            <option value="qa">跑 QA 生成答案</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>方法</span>
+          <select id="method">
+            <option value="ordinary_recent">普通上下文：最近 K 轮</option>
+            <option value="pure_rag" selected>纯 RAG：向量召回 + QA</option>
+            <option value="bm25_only">BM25：关键词召回 + QA</option>
+            <option value="hybrid_rrf">混合 RRF：向量 + BM25 + QA</option>
+            <option value="arpm_full">ARPM 完整：向量召回 + 协议 + 注入</option>
+            <option value="arpm_hybrid_rrf">ARPM Hybrid：向量 + BM25 + RRF + 协议</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>向量模型</span>
+          <select id="embedding-model">
+            <option value="bge-m3" selected>bge-m3（中文/多语种推荐）</option>
+          </select>
+        </label>
+        <div id="embedding-model-info" class="model-info">
+          <div class="model-info-title">当前模型：bge-m3</div>
+          <div class="model-info-body">中文/多语种推荐。适合 LOCOMO 中文化 QA 和跨语种召回。</div>
+        </div>
+        <p id="method-info" class="hint">纯 RAG 使用单向量召回；ARPM Hybrid 会额外加入 BM25 与 RRF 融合。</p>
+      </section>
+
+      <section>
+        <div class="section-line">
+          <h2>会话</h2>
+          <button id="btn-all" class="mini">全选</button>
+        </div>
+        <div id="session-list" class="session-list"></div>
+      </section>
+
+      <section>
+        <h2>参数</h2>
+        <label class="field">
+          <span>每个会话 QA 数</span>
+          <input id="limit" type="number" min="1" max="9999" value="10">
+        </label>
+        <label class="field">
+          <span>Top-K</span>
+          <input id="top-k" type="number" min="1" max="100" value="20">
+        </label>
+        <label class="check">
+          <input id="dual-route-enabled" type="checkbox">
+          <span>启用双路注入：LOCOMO Top-K + 对话历史 Top-N</span>
+        </label>
+        <label class="check">
+          <input id="realtime-write-enabled" type="checkbox">
+          <span>实时写入二路：每题回答后写入本次 run 的隔离索引</span>
+        </label>
+        <label class="field">
+          <span>实时二路 Run ID</span>
+          <input id="run-id" placeholder="留空则开始运行时自动生成">
+        </label>
+        <label class="field">
+          <span>对话历史 Top-N</span>
+          <input id="chat-history-k" type="number" min="1" max="30" value="10">
+        </label>
+        <label class="field">
+          <span>轮次衰减</span>
+          <input id="decay-round" type="number" min="1" max="1000" value="20">
+        </label>
+        <label class="check">
+          <input id="round-decay-enabled" type="checkbox">
+          <span>启用轮次衰减（LOCOMO 默认关闭）</span>
+        </label>
+        <label class="field">
+          <span>时间衰减/小时</span>
+          <input id="decay-hours" type="number" min="1" max="8760" value="168">
+        </label>
+        <label class="check">
+          <input id="time-decay-enabled" type="checkbox">
+          <span>启用物理时间衰减（LOCOMO 默认关闭）</span>
+        </label>
+        <label class="field">
+          <span>API 间隔/秒</span>
+          <input id="api-delay" type="number" min="0" max="30" step="0.5" value="1">
+        </label>
+        <label class="check">
+          <input id="save-prompts" type="checkbox">
+          <span>保存 prompt 到结果</span>
+        </label>
+        <label class="check">
+          <input id="allow-large-qa" type="checkbox">
+          <span>允许一次跑超过 100 条 QA 生成</span>
+        </label>
+        <label class="check">
+          <input id="resume-run" type="checkbox">
+          <span>断点续跑：跳过已完成 QA</span>
+        </label>
+      </section>
+
+      <section id="api-panel">
+        <h2>API 配置</h2>
+        <label class="field">
+          <span>API Key</span>
+          <input id="api-key" type="password" placeholder="只在本地请求中使用">
+        </label>
+        <label class="field">
+          <span>Base URL</span>
+          <input id="base-url" value="https://api.deepseek.com">
+        </label>
+        <label class="field">
+          <span>模型</span>
+          <input id="model-name" value="deepseek-chat">
+        </label>
+        <label class="field">
+          <span>Temperature</span>
+          <input id="temperature" type="number" min="0" max="2" step="0.1" value="0">
+        </label>
+        <label class="field">
+          <span>Max tokens</span>
+          <input id="max-tokens" type="number" min="16" max="8192" value="512">
+        </label>
+        <div class="button-row">
+          <button id="btn-test-api" class="mini" type="button">测试 API</button>
+          <span id="api-test-status" class="hint">未测试</span>
+        </div>
+      </section>
+
+      <section>
+        <h2>协议 Prompt</h2>
+        <label class="field">
+          <span>快速模板</span>
+          <select id="prompt-template">
+            <option value="locomo_arpm_protocol" selected>LOCOMO-ARPM：analysis/response</option>
+            <option value="locomo_plain">LOCOMO 标准短答</option>
+            <option value="empty">空白：我自己填写</option>
+          </select>
+        </label>
+        <div class="button-row">
+          <button id="btn-fill-template" class="mini" type="button">填入模板</button>
+          <button id="btn-copy-template" class="mini" type="button">复制模板</button>
+          <button id="btn-clear-prompt" class="mini subtle" type="button">清空</button>
+        </div>
+        <textarea id="system-prompt" placeholder="仅在 ARPM 完整方法中插入到 LOCOMO QA 指令之前。可用模板快速填入，也可以清空后自己写。"></textarea>
+        <p class="hint">QA 生成后会自动提取 &lt;response&gt; 作为模型答案参与 EM/F1，&lt;analysis&gt; 会保留在结果中用于检查协议是否生效。</p>
+      </section>
+
+      <button id="btn-run" class="primary">开始运行</button>
+      <button id="btn-stop" class="danger">停止当前请求</button>
+      <button id="btn-save-settings" class="mini wide">保存当前配置</button>
+      <button id="btn-reset-settings" class="mini wide subtle">清除本地保存的设置</button>
+      <p id="status" class="status">等待操作</p>
+      <div class="save-as">
+        <label class="field">
+          <span>另存 CSV 到指定位置</span>
+          <input id="save-as-path" placeholder="例如 D:\LOCOMO\result.csv">
+        </label>
+        <button id="btn-save-as" class="mini wide">另存为</button>
+      </div>
+      <div class="progress">
+        <div class="progress-line">
+          <span id="progress-text">0 / 0</span>
+          <span id="job-state">idle</span>
+        </div>
+        <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+        <div id="current-item" class="current-item">当前没有任务</div>
+      </div>
+    </aside>
+
+    <section class="main">
+      <div class="cards">
+        <div class="metric"><span>题数</span><strong id="m-count">0</strong></div>
+        <div class="metric"><span>Recall@5</span><strong id="m-r5">0</strong></div>
+        <div class="metric"><span>Recall@10</span><strong id="m-r10">0</strong></div>
+        <div class="metric"><span>MRR</span><strong id="m-mrr">0</strong></div>
+        <div class="metric"><span>EM</span><strong id="m-em">-</strong></div>
+        <div class="metric"><span>F1</span><strong id="m-f1">-</strong></div>
+      </div>
+
+      <div class="panel">
+        <div class="section-line">
+          <h2>会话对比</h2>
+          <span class="hint">按当前结果计算 Hit@10</span>
+        </div>
+        <div id="chart" class="chart"></div>
+      </div>
+
+      <div class="panel">
+        <div class="section-line">
+          <h2>题目结果</h2>
+          <div class="filters">
+            <button id="filter-all" class="mini active">全部</button>
+            <button id="filter-miss" class="mini">只看未命中</button>
+          </div>
+        </div>
+        <div class="pager">
+          <button id="page-prev" class="mini" type="button">上一页</button>
+          <span id="page-info">第 1 / 1 页</span>
+          <button id="page-next" class="mini" type="button">下一页</button>
+        </div>
+        <div id="results" class="results empty">还没有结果。先在左侧选择会话，然后点击“开始运行”。</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
