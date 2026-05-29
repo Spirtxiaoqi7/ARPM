@@ -1,4 +1,4 @@
-﻿# ARPM v4.0
+﻿# ARPM v4.1
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white" />
@@ -17,7 +17,7 @@
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat" />
 </p>
 
-ARPM v4.0, short for **Analysis-Based Role-Playing with Memory**, is an open-source role-playing dialogue system with long-term memory, hybrid retrieval, temporal weighting, and a lightweight web interface.
+ARPM v4.1, short for **Analysis-Based Role-Playing with Memory**, is an open-source role-playing dialogue system with long-term memory, hybrid retrieval, temporal weighting, and a lightweight web interface.
 
 > Paper: [ARPM: Analysis-Based Role-Playing with Memory](https://arxiv.org/abs/2605.14802)
 
