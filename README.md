@@ -1,214 +1,270 @@
-# ARPM v4.1 - Analysis-Based Role-Playing with Memory
+﻿# ARPM v4.0
 
-ARPM v4 是新一代角色一致性对话系统，采用双时态记忆架构和实时原子化存储。
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/Flask-000000?style=flat&logo=flask&logoColor=white" />
+  <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=flat&logo=javascript&logoColor=black" />
+  <img src="https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white" />
+  <img src="https://img.shields.io/badge/CSS3-1572B6?style=flat&logo=css3&logoColor=white" />
+  <img src="https://img.shields.io/badge/FAISS-Vector_Search-4B8BBE?style=flat" />
+  <img src="https://img.shields.io/badge/BM25%2B-Hybrid_Retrieval-5A5A5A?style=flat" />
+  <img src="https://img.shields.io/badge/HuggingFace-Models-FFD21E?style=flat&logo=huggingface&logoColor=black" />
+  <img src="https://img.shields.io/badge/OpenAI-Compatible_API-412991?style=flat&logo=openai&logoColor=white" />
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white" />
+  <a href="https://arxiv.org/abs/2605.14802">
+    <img src="https://img.shields.io/badge/arXiv-2605.14802-B31B1B?style=flat&logo=arxiv&logoColor=white" />
+  </a>
+  <img src="https://img.shields.io/badge/License-MIT-green?style=flat" />
+</p>
 
-## V4.1 更新
+ARPM v4.0, short for **Analysis-Based Role-Playing with Memory**, is an open-source role-playing dialogue system with long-term memory, hybrid retrieval, temporal weighting, and a lightweight web interface.
 
-- **三段式生成协议**：新增 `<state_update>`、`<analysis>`、`<response>` 三段式输出。
-- **关系状态记忆 RST**：显式关系变更可升级为 persistent Relationship State，下一轮固定注入 prompt，不依赖 RAG 命中。
-- **状态/RAG 隔离**：`state_update`、persistent RST、`analysis` 绝不写入向量库；只有用户输入与可见 `<response>` 写入对话记忆。
-- **保守状态机守卫**：仅当关系变更为当前、显式、高置信度且非 `conflict` 时升级 persistent RST。
-- **角色行动指导**：`analysis` 改为 50 字内行动指导，仅服务本轮回复生成，不进入下一轮 prompt。
-- **回复格式规范**：`<response>` 中中文引号“”表示说话内容，圆括号（）表示动作、神态、心理或其他非对白描述。
-- **LOCOMO 隔离**：LOCOMO 测评代码与主 ARPM 运行时数据分离，避免基准数据污染主前端知识库。
+> Paper: [ARPM: Analysis-Based Role-Playing with Memory](https://arxiv.org/abs/2605.14802)
 
-## 🚀 核心特性
+## V4.1 Update Note
 
-### 双时态记忆系统
-- **轮次时态**: 基于对话轮次的指数衰减
-- **物理时态**: 基于真实时间的权重计算
-- **双索引结构**: 知识库索引 + 对话历史索引分离存储
+V4.1 keeps the original repository layout and adds a focused update for state-safe role-playing memory: a three-stage `<state_update> / <analysis> / <response>` protocol, persistent relationship-state guarding, stricter separation between visible role memory and internal analysis/state metadata, LOCOMO isolation from the main ARPM runtime, and release-ready Docker packaging.
 
-### 实时原子写入
-- 每轮对话立即向量化存储
-- 无需等待10K字符阈值
-- 对话历史参与RAG检索（Top-10）
+本项目面向两类场景：一类是可复现实验和学术研究，另一类是自由对话、角色扮演和个人知识库交互。系统默认提供前后端一体化运行方式，也支持 Docker 部署，便于在本地实验、课程项目、论文复现和开源社区协作中使用。
 
-### 模糊问题拆解
-- LLM自动判断问题清晰度
-- 召回不匹配时自动拆解为子问题
-- 多路检索结果智能合并
 
-### 双源召回
-- **知识库**: 父子块结构，BM25+向量融合，召回5块
-- **对话历史**: 原子块结构，纯向量检索，召回10块
+## Highlights
 
-## 📁 项目结构
+- **Hybrid memory retrieval**: knowledge-base retrieval and dialogue-history retrieval are stored and retrieved separately.
+- **Vector + BM25+ fusion**: knowledge retrieval combines semantic vector search with BM25+ keyword ranking through RRF.
+- **Dual temporal weighting**: both dialogue round order and physical time are retained for memory scoring and prompt injection.
+- **Chronological prompt injection**: recalled blocks are injected from earlier turns to later turns, so the latest recalled content appears closest to the final instruction.
+- **Role-aware retrieval**: user name, AI name, and source-role cues can be used to enhance retrieval queries.
+- **Research-friendly logging**: recall logs, dialogue logs, and chain-of-thought-related diagnostic logs are separated under the admin logging structure.
+- **Free dialogue support**: the frontend supports immersive chat and clean research display modes, with Chinese/English interface switching.
 
-```
-ARPM-v4/
-├── backend/
-│   ├── app.py                 # Flask主入口
-│   ├── config.py              # 配置中心
-│   ├── requirements.txt       # 依赖列表
-│   ├── api/
-│   │   ├── chat.py            # 对话接口（含模糊拆解）
-│   │   ├── knowledge.py       # 知识库管理
-│   │   ├── session.py         # 会话管理
-│   │   └── diagnose.py        # 诊断接口
-│   ├── core/
-│   │   ├── retriever.py       # 双源检索器
-│   │   ├── memory_manager.py  # 双时态权重
-│   │   ├── generator.py       # 生成器（含规则验证）
-│   │   └── diagnostician.py   # 系统诊断
-│   ├── storage/
-│   │   ├── vector_store.py    # 双索引存储
-│   │   ├── memory_store.py    # 会话存储
-│   │   └── schema.py          # 数据模型
-│   ├── utils/
-│   │   ├── chunker.py         # 分块器
-│   │   ├── bm25_plus.py       # BM25+实现
-│   │   ├── time_utils.py      # 双时态工具
-│   │   └── text_utils.py      # 文本工具
-│   └── web/
-│       ├── static/css/style.css
-│       └── templates/index.html
-├── scripts/
-│   └── migrate_v3_to_v4.py    # v3数据迁移
-├── start.bat                    # Windows启动脚本
-└── README_V4.md
-```
+## Technology Stack
 
-## 🛠️ 快速开始
+- **Backend**: Python, Flask
+- **Frontend**: HTML, CSS, vanilla JavaScript
+- **Vector index**: FAISS
+- **Embedding model**: `shibing624/text2vec-base-chinese`
+- **Keyword retrieval**: BM25+ with `jieba` Chinese tokenization
+- **LLM API**: OpenAI-compatible chat completion API, including DeepSeek/OpenAI-style endpoints
+- **Deployment**: local Python virtual environment or Docker Compose
 
-### 1. 数据迁移（如有v3数据）
+## Academic Use
+
+ARPM v4.0 is designed to support controlled experiments around memory-augmented dialogue systems. It can be used to study:
+
+- role consistency in long multi-turn dialogue;
+- retrieval-augmented generation for character simulation;
+- temporal decay in dialogue memory;
+- vector retrieval versus BM25+ keyword retrieval;
+- prompt construction under chronological memory injection;
+- ablation studies for retrieval, temporal weighting, BM25+, and role-aware query enhancement.
+
+The project includes research notes and formula descriptions under `docs/`. Runtime logs can be used for experimental inspection, error analysis, and figure reproduction.
+
+## Free Dialogue Use
+
+Besides research use, ARPM v4.0 can also be used as a local role-playing chat system. You can configure:
+
+- user name and user persona;
+- AI name and system prompt;
+- API key, base URL, and model name;
+- retrieval parameters and ablation switches;
+- knowledge-base files for character background, world settings, or personal notes.
+
+The frontend provides two visual styles:
+
+- immersive chat mode for daily conversation and role-playing;
+- clean research mode for observation, debugging, and experiment demonstration.
+
+## Quick Start
+
+Windows:
+
 ```bash
-python scripts/migrate_v3_to_v4.py
-```
-
-### 2. 安装依赖
-```bash
-cd backend
-pip install -r requirements.txt
-```
-
-### 3. 启动服务
-```bash
-# Windows
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
 start.bat
-
-# 或手动
-cd backend
-python app.py
 ```
 
-### 4. 访问
-打开浏览器访问: http://localhost:5000
+Linux or macOS:
 
-## ⚙️ 配置说明
-
-在设置面板中配置：
-- **API密钥**: 支持 DeepSeek/OpenAI 兼容接口
-- **系统提示词**: 定义AI角色行为
-- **消融测试开关**:
-  - ARPM检索总开关
-  - BM25+混合检索
-  - 模糊问题拆解
-
-## 🗃️ 数据存储
-
-### 双索引结构
-```
-data/vector_db/
-├── knowledge/           # 知识库索引
-│   ├── metadata.json    # 父块元数据（含chunk_id, timestamp, children）
-│   └── faiss.index      # FAISS向量索引
-└── chat/                # 对话历史索引
-    ├── metadata.json    # 原子块元数据
-    └── faiss.index      # FAISS向量索引
-
-data/memory_db/
-└── session_{id}.json    # 会话数据（消息+结构化记忆）
-```
-
-### 时间戳格式
-```json
-{
-  "round_num": 5,
-  "physical_time": "2026-04-07T22:31:00"
-}
-```
-
-## 🔍 检索流程
-
-```
-用户输入
-    ↓
-[知识库检索] ──向量+BM25+RRF──→ 5个父块
-[对话检索] ──────向量────────→ 10个原子块
-    ↓
-时态权重计算 (轮次+物理时间+场景)
-    ↓
-合并15块上下文
-    ↓
-LLM分析（判断清晰度）
-    ↓
-模糊? → 拆解子问题 → 重新检索 → 合并
-清晰? → 直接生成
-    ↓
-规则验证 → 保存回复
-    ↓
-实时原子化写入向量库
-```
-
-## 🧪 与v3的主要差异
-
-| 特性 | v3 | v4 |
-|------|-----|-----|
-| 时间模型 | 单一时态（轮次） | 双时态（轮次+物理） |
-| 写入策略 | 10K阈值批量写入 | 实时原子写入 |
-| 存储结构 | 单索引 | 双索引（知识+对话分离） |
-| 召回来源 | 仅知识库 | 知识库+对话历史 |
-| 模糊处理 | 无 | 自动拆解子问题 |
-| 手动加权 | 关键词/怀旧/锁定 | **已移除** |
-| 场景结构 | 嵌套支持 | 扁平结构 |
-
-## 📝 API 端点
-
-- `POST /api/chat` - 对话（含模糊拆解）
-- `POST /api/test` - 测试API连接
-- `GET /api/knowledge` - 获取知识库
-- `POST /api/knowledge` - 上传文件
-- `DELETE /api/knowledge?index=x` - 删除片段
-- `GET /api/sessions` - 会话列表
-- `GET /api/history/{id}` - 会话历史
-- `POST /api/diagnostics` - 系统诊断
-
-## 🐛 故障排除
-
-### FAISS索引损坏
 ```bash
-# 自动修复
-POST /api/diagnostics {"auto_fix": true}
+python -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+sh start.sh
 ```
 
-### 模型加载失败
-确保 models/shibing624/text2vec-base-chinese/ 存在
+Open the web interface:
 
-### 数据不兼容
-运行迁移脚本：python scripts/migrate_v3_to_v4.py
+```text
+http://127.0.0.1:5000
+```
 
-## 📄 许可证
-
-MIT License
-
-## Docker 部署
-
-本仓库包体不包含虚拟环境、运行时向量库、实验日志和模型本体。容器默认读取：
-
-- 运行数据：`./runtime:/app/runtime`
-- 本地模型：`./assets:/app/assets`
-
-启动方式：
+## Docker
 
 ```bash
 docker compose up --build
 ```
 
-启动后访问：
+The compose file maps:
 
 ```text
-http://localhost:5000
+./runtime        -> /app/runtime
+./assets/models  -> /app/assets/models
 ```
 
-如需使用本地向量模型，请按文档下载到 `assets/models/`，或通过环境变量 `ARPM_MODEL_ROOT` 指向已有模型父目录。
+## Model Download
+
+Vector retrieval uses the sentence embedding model:
+
+```text
+shibing624/text2vec-base-chinese
+```
+
+Model weights are not included in this repository. The expected local path is:
+
+```text
+assets/models/shibing624/text2vec-base-chinese
+```
+
+Download with Git LFS:
+
+```bash
+git lfs install
+mkdir -p assets/models/shibing624
+git clone https://huggingface.co/shibing624/text2vec-base-chinese assets/models/shibing624/text2vec-base-chinese
+```
+
+Download with Hugging Face CLI:
+
+```bash
+pip install -U huggingface_hub
+huggingface-cli download shibing624/text2vec-base-chinese --local-dir assets/models/shibing624/text2vec-base-chinese
+```
+
+If Hugging Face is slow in your network, set a mirror endpoint before download:
+
+```bash
+export HF_ENDPOINT=https://hf-mirror.com
+```
+
+Windows PowerShell:
+
+```powershell
+$env:HF_ENDPOINT = "https://hf-mirror.com"
+```
+
+You can also keep the model outside the repository and point the app to it:
+
+```bash
+export ARPM_MODEL_ROOT=/path/to/models
+```
+
+Windows PowerShell:
+
+```powershell
+$env:ARPM_MODEL_ROOT = "D:\models"
+```
+
+## BM25+
+
+BM25+ is not a downloadable model. It is a keyword-ranking algorithm implemented in:
+
+```text
+backend/utils/bm25_plus.py
+```
+
+The implementation uses `jieba` for Chinese tokenization and builds the BM25+ index from imported knowledge-base parent chunks at runtime. In the knowledge retrieval path, vector search and BM25+ keyword ranking are fused through RRF.
+
+Related dependencies are pinned in `requirements.txt`:
+
+```text
+jieba==0.42.1
+rank-bm25==0.2.2
+```
+
+The current retrieval path uses the in-project `BM25PlusScorer`; `rank-bm25` is retained as an environment dependency for reproducibility and future replacement experiments.
+
+## Project Layout
+
+```text
+backend/app.py                       Flask entry
+backend/config.py                    Path and runtime configuration
+backend/api                          HTTP API endpoints
+backend/core/retriever.py            Vector, BM25+, and RRF retrieval flow
+backend/core/generator.py            Prompt construction and response generation
+backend/storage/vector_store.py      FAISS vector storage
+backend/storage/memory_store.py      Dialogue memory storage
+backend/utils/bm25_plus.py           BM25+ scorer
+backend/utils/admin_logger.py        Research and diagnostic logs
+backend/web/templates/index.html     Frontend template
+backend/web/static                   Frontend CSS and JavaScript
+config                               Character and system configuration
+docs                                 Research and implementation notes
+scripts                              Utility scripts
+tests                                Test files
+```
+
+## Runtime Paths
+
+Default runtime data directory:
+
+```text
+runtime/arpm-app
+```
+
+Default model root:
+
+```text
+assets/models
+```
+
+Both paths can be changed with environment variables:
+
+```text
+ARPM_RUNTIME_DIR
+ARPM_MODEL_ROOT
+```
+
+## API Configuration
+
+The frontend settings panel supports OpenAI-compatible API configuration:
+
+```text
+API key
+Base URL
+Model name
+Temperature
+Max tokens
+```
+
+The default configuration is compatible with DeepSeek-style endpoints, and can be changed from the web interface.
+
+## Research Notes
+
+For formula descriptions, parameter values, temporal decay settings, and experiment-facing explanations, see:
+
+```text
+docs/
+```
+
+The project keeps runtime data out of the release package. When publishing or sharing experimental results, keep raw logs, figures, and private datasets separate from the source repository unless they are explicitly intended for release.
+
+## License
+
+This project is released under the license included in `LICENSE`.
+
+## Citation
+
+```bibtex
+@misc{arpm-v4,
+  title  = {ARPM v4.0: Analysis-Based Role-Playing with Memory},
+  author = {To be updated},
+  year   = {2026},
+  eprint = {2605.14802},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.AI},
+  url    = {https://arxiv.org/abs/2605.14802}
+}
+```
