@@ -1,0 +1,46 @@
+cff-version: 1.2.0
+message: "If you use ARPM in your research, please cite the corresponding arXiv preprint."
+title: "A Heterogeneous Temporal Memory Governance Framework for Long-Term LLM Persona Consistency"
+type: software
+authors:
+  - family-names: Zhao
+    given-names: Yang
+  - family-names: Wang
+    given-names: Huan
+  - family-names: Li
+    given-names: Yingshuo
+  - family-names: Tu
+    given-names: Haomiao
+  - family-names: Lin
+    given-names: Hujite
+year: 2026
+version: "4.0"
+repository-code: "https://github.com/Spirtxiaoqi7/ARPM"
+url: "https://arxiv.org/abs/2605.14802"
+license: MIT
+abstract: "ARPM is a heterogeneous temporal memory governance framework for long-term LLM persona consistency, role-playing dialogue, and retrieval-augmented external memory."
+keywords:
+  - LLM memory
+  - persona consistency
+  - role-playing dialogue
+  - retrieval-augmented generation
+  - temporal memory
+  - FAISS
+  - BM25
+  - Chinese NLP
+preferred-citation:
+  type: generic
+  title: "A Heterogeneous Temporal Memory Governance Framework for Long-Term LLM Persona Consistency"
+  authors:
+    - family-names: Zhao
+      given-names: Yang
+    - family-names: Wang
+      given-names: Huan
+    - family-names: Li
+      given-names: Yingshuo
+    - family-names: Tu
+      given-names: Haomiao
+    - family-names: Lin
+      given-names: Hujite
+  year: 2026
+  url: "https://arxiv.org/abs/2605.14802"

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: ARPM paper
+    url: https://arxiv.org/abs/2605.14802
+    about: Read the corresponding arXiv preprint.
