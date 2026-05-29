@@ -1,7 +1,8 @@
 Flask==3.0.0
 openai>=1.0.0
 sentence-transformers>=2.2.0
-faiss-cpu>=1.7.4
+faiss-cpu==1.7.4; python_version < "3.12"
+faiss-cpu>=1.8.0; python_version >= "3.12"
 jieba>=0.42.1
 numpy>=1.24.0
 pydantic>=2.0.0
