@@ -167,6 +167,8 @@ tests                                Test files
 - [Formula and Numerical Notes](docs/ARPM公式与数值说明.md): retrieval, temporal weighting, and experiment-facing formulas.
 - [Feature Summary](docs/FEATURES_SUMMARY.md): feature list and implementation summary.
 - [Changelog](docs/CHANGELOG.md): release notes.
+- [Contributing](CONTRIBUTING.md): issue, pull request, and research contribution notes.
+- [Security](SECURITY.md): vulnerability reporting and sensitive-data guidance.
 
 ## Repository Discovery
 
@@ -206,6 +208,8 @@ https://arxiv.org/abs/2605.14802
 ## Contributing
 
 Issues, documentation improvements, reproducibility reports, and pull requests are welcome. Please see [CONTRIBUTING.md](CONTRIBUTING.md) before opening a larger change.
+
+Do not commit API keys, private chat logs, local runtime databases, uploaded knowledge bases, or embedding model weights. Use [.env.example](.env.example) as a local configuration reference.
 
 ## License
 
