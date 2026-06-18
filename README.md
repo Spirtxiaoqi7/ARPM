@@ -1,4 +1,4 @@
-﻿# ARPM v4.1
+# ARPM v4.1
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white" />
@@ -20,6 +20,34 @@
 ARPM v4.1, short for **Analysis-Based Role-Playing with Memory**, is an open-source role-playing dialogue system with long-term memory, hybrid retrieval, temporal weighting, and a lightweight web interface.
 
 > Paper: [ARPM: Analysis-Based Role-Playing with Memory](https://arxiv.org/abs/2605.14802)
+
+## LOCOMO Full ARPM Result
+
+The repository now includes one complete LOCOMO run using the full ARPM method: BGE-M3 embedding, dual-route retrieval, RRF fusion, and BM25 keyword retrieval.
+
+| Evaluation | Result |
+|---|---:|
+| QA records | 1,986 |
+| Hit@5 | 60.93% |
+| Hit@10 | 71.75% |
+| MRR | 48.24% |
+| EM | 12.64% |
+| F1 | 31.93% |
+
+White-box analysis metrics are also provided:
+
+| Metric | Result |
+|---|---:|
+| Evidence entered prompt rate | 83.28% |
+| All evidence entered prompt rate | 71.80% |
+| Semantic analysis hit rate | 46.88% |
+| Answer-evidence binding rate | 39.87% |
+| Temporal reasoning correctness | 52.96% |
+| Official unanswerable hit rate | 93.95% |
+| White-box reasonable abstention rate | 46.64% |
+| Answerable-question abstention rate | 22.14% |
+
+See [`docs/results/locomo/`](docs/results/locomo/) for the result note and white-box metric figure. Project discussion should focus on source code, paper claims, reproducible evaluation, retrieval evidence, and answer-evidence binding.
 
 ## V4.1 Update Note
 
