@@ -25,28 +25,28 @@ ARPM v4.1, short for **Analysis-Based Role-Playing with Memory**, is an open-sou
 
 The repository now includes one complete LOCOMO run using the full ARPM method: BGE-M3 embedding, dual-route retrieval, RRF fusion, and BM25 keyword retrieval.
 
-For comparability with standard LOCOMO reports, EM and F1 are reported on answerable questions only. This run contains 1,986 QA records: 1,542 answerable questions and 444 unanswerable questions.
+Metric convention: F1 is reported on answerable questions only, because unanswerable questions require a separate abstention / IDK-style evaluation. Other retrieval, EM, and white-box metrics follow the validated full-run figure and chart.
 
-| Answerable-question evaluation | Result |
+| Full-run / validated metric | Result |
 |---|---:|
-| Hit@5 | 63.23% |
-| Hit@10 | 73.80% |
-| MRR | 50.89% |
-| EM | 16.21% |
-| F1 | 41.05% |
+| Hit@5 | 60.93% |
+| Hit@10 | 71.75% |
+| MRR | 48.24% |
+| EM | 12.64% |
+| F1 (answerable questions only) | 41.05% |
 
-Unanswerable questions are evaluated separately. Blank responses are normalized as IDK-like abstentions.
+Unanswerable questions are evaluated separately. Blank responses are normalized as IDK-like abstentions when evaluating abstention behavior.
 
 | Unanswerable / white-box metric | Result |
 |---|---:|
-| Unanswerable-question IDK hit rate | 93.92% |
+| Unanswerable-question IDK hit rate | 93.95% |
 | Evidence entered prompt rate | 83.28% |
 | All evidence entered prompt rate | 71.80% |
 | Semantic analysis hit rate | 46.88% |
 | Answer-evidence binding rate | 39.87% |
 | Temporal reasoning correctness | 52.96% |
 | White-box reasonable abstention rate | 46.64% |
-| Answerable-question abstention rate | 20.75% |
+| Answerable-question abstention rate | 22.14% |
 
 See [`docs/results/locomo/`](docs/results/locomo/) for the result note and white-box metric figure. Project discussion should focus on source code, paper claims, reproducible evaluation, retrieval evidence, and answer-evidence binding.
 
